@@ -33,9 +33,11 @@ import logging
 import struct
 import hashlib
 import json
+try: import pyev
+except: pyev = None
 
 logger = logging.getLogger('hpfeeds')
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 #def DEBUGPERF(msg):
 #	print(msg)
@@ -59,6 +61,7 @@ SIZES = {
 	OP_SUBSCRIBE: 5+256*2,
 }
 
+CONNCHAN = 'dionaea.connections'
 CAPTURECHAN = 'dionaea.capture'
 DCECHAN = 'dionaea.dcerpcrequests'
 SCPROFCHAN = 'dionaea.shellcodeprofiles'
@@ -224,13 +227,99 @@ class hpfeedihandler(ihandler):
 		self.client = hpclient(config['server'], int(config['port']), config['ident'], config['secret'])
 		ihandler.__init__(self, '*')
 
+		self.dynip_resolve = config.get('dynip_resolve', '')
+		self.dynip_timer = None
+		self.ownip = None
+		if self.dynip_resolve and 'http' in self.dynip_resolve:
+			if pyev == None:
+				logger.debug('You are missing the python pyev binding in your dionaea installation.')
+			else:
+				logger.debug('hpfeedihandler will use dynamic IP resolving!')
+				self.loop = pyev.default_loop()
+				self.dynip_timer = pyev.Timer(2., 300, self.loop, self._dynip_resolve)
+				self.dynip_timer.start()
+
+	def stop(self):
+		if self.dynip_timer:
+			self.dynip_timer.stop()
+			self.dynip_timer = None
+			self.loop = None
+
+	def _ownip(self, icd):
+		if self.dynip_resolve and 'http' in self.dynip_resolve and pyev != None:
+			if self.ownip: return self.ownip
+			else: raise Exception('Own IP not yet resolved!')
+		return icd.con.local.host
+
 	def __del__(self):
 		#self.client.close()
 		pass
 
+	def connection_publish(self, icd, con_type):
+		try:
+			con=icd.con
+			self.client.publish(CONNCHAN, connection_type=con_type, connection_tranremote_port=con.tranremote_port, connection_protocol=con.protocol, remote_host=con.remote.host, remote_port=con.remote.port, remote_hostname=con.remote.hostname, local_host=con.local.host, local_port=con.local.port)
+		except Exception as e:
+			logger.warn('exception when publishing: {0}'.format(e))
+
 	def handle_incident(self, i):
 		pass
-		
+	
+	def handle_incident_dionaea_connection_tcp_listen(self, icd):
+		self.connection_publish(icd, 'listen')
+		con=icd.con
+		logger.info("listen connection on %s:%i" % 
+			(con.remote.host, con.remote.port))
+
+	def handle_incident_dionaea_connection_tls_listen(self, icd):
+		self.connection_publish(icd, 'listen')
+		con=icd.con
+		logger.info("listen connection on %s:%i" % 
+			(con.remote.host, con.remote.port))
+
+	def handle_incident_dionaea_connection_tcp_connect(self, icd):
+		self.connection_publish(icd, 'connect')
+		con=icd.con
+		logger.info("connect connection to %s/%s:%i from %s:%i" % 
+			(con.remote.host, con.remote.hostname, con.remote.port, con.local.host, con.local.port))
+
+	def handle_incident_dionaea_connection_tls_connect(self, icd):
+		self.connection_publish(icd, 'connect')
+		con=icd.con
+		logger.info("connect connection to %s/%s:%i from %s:%i" % 
+			(con.remote.host, con.remote.hostname, con.remote.port, con.local.host, con.local.port))
+
+	def handle_incident_dionaea_connection_udp_connect(self, icd):
+		self.connection_publish(icd, 'connect')
+		con=icd.con
+		logger.info("connect connection to %s/%s:%i from %s:%i" % 
+			(con.remote.host, con.remote.hostname, con.remote.port, con.local.host, con.local.port))
+
+	def handle_incident_dionaea_connection_tcp_accept(self, icd):
+		self.connection_publish(icd, 'accept')
+		con=icd.con
+		logger.info("accepted connection from  %s:%i to %s:%i" %
+			(con.remote.host, con.remote.port, con.local.host, con.local.port))
+
+	def handle_incident_dionaea_connection_tls_accept(self, icd):
+		self.connection_publish(icd, 'accept')
+		con=icd.con
+		logger.info("accepted connection from %s:%i to %s:%i" % 
+			(con.remote.host, con.remote.port, con.local.host, con.local.port))
+
+
+	def handle_incident_dionaea_connection_tcp_reject(self, icd):
+		self.connection_publish(icd, 'reject')
+		con=icd.con
+		logger.info("reject connection from %s:%i to %s:%i" % 
+			(con.remote.host, con.remote.port, con.local.host, con.local.port))
+
+	def handle_incident_dionaea_connection_tcp_pending(self, icd):
+		self.connection_publish(icd, 'pending')
+		con=icd.con
+		logger.info("pending connection from %s:%i to %s:%i" % 
+			(con.remote.host, con.remote.port, con.local.host, con.local.port))
+	
 	def handle_incident_dionaea_download_complete_unique(self, i):
 		self.handle_incident_dionaea_download_complete_again(i)
 		if not hasattr(i, 'con') or not self.client.connected: return
@@ -245,9 +334,9 @@ class hpfeedihandler(ihandler):
 		logger.debug('hash complete, publishing md5 {0}, path {1}'.format(i.md5hash, i.file))
 		try:
 			sha512 = sha512file(i.file)
-			self.client.publish(CAPTURECHAN, saddr=i.con.remote.host, 
-				sport=str(i.con.remote.port), daddr=i.con.local.host,
-				dport=str(i.con.local.port), md5=i.md5hash, sha512=sha512,
+			self.client.publish(CAPTURECHAN, remote_host=i.con.remote.host, 
+				remote_port=str(i.con.remote.port), local_host=self._ownip(i),
+				local_port=str(i.con.local.port), md5=i.md5hash, sha512=sha512,
 				url=i.url
 			)
 		except Exception as e:
@@ -258,8 +347,8 @@ class hpfeedihandler(ihandler):
 		logger.debug('dcerpc request, publishing uuid {0}, opnum {1}'.format(i.uuid, i.opnum))
 		try:
 			self.client.publish(DCECHAN, uuid=i.uuid, opnum=i.opnum,
-				saddr=i.con.remote.host, sport=str(i.con.remote.port),
-				daddr=i.con.local.host, dport=str(i.con.local.port),
+				remote_host=i.con.remote.host, remote_port=str(i.con.remote.port),
+				local_host=self._ownip(i), local_port=str(i.con.local.port),
 			)
 		except Exception as e:
 			logger.warn('exception when publishing: {0}'.format(e))
@@ -268,34 +357,46 @@ class hpfeedihandler(ihandler):
 		if not hasattr(icd, 'con') or not self.client.connected: return
 		logger.debug('emu profile, publishing length {0}'.format(len(icd.profile)))
 		try:
-			self.client.publish(SCPROFCHAN, profile=icd.profile,saddr=icd.con.remote.host, sport=str(icd.con.remote.port),
-				daddr=icd.con.local.host, dport=str(icd.con.local.port),)
+			self.client.publish(SCPROFCHAN, profile=icd.profile)
 		except Exception as e:
 			logger.warn('exception when publishing: {0}'.format(e))
+
+	def _dynip_resolve(self, events, data):
+		i = incident("dionaea.upload.request")
+		i._url = self.dynip_resolve
+		i._callback = "dionaea.modules.python.hpfeeds.dynipresult"
+		i.report()
+
+	def handle_incident_dionaea_modules_python_hpfeeds_dynipresult(self, icd):
+		fh = open(icd.path, mode="rb")
+		self.ownip = fh.read().strip()
+		logger.debug('resolved own IP to: {0}'.format(self.ownip))
+		fh.close()
 
 	def handle_incident_dionaea_download_offer(self, icd):
 		if not hasattr(icd, 'con') or not self.client.connected: return
 		logger.debug('offer, publishing offer_url {0}'.format(str(icd.url)))
 		try:
-			self.client.publish(OFFERCHAN, offer_url=icd.url,saddr=icd.con.remote.host, sport=str(icd.con.remote.port),
-				daddr=icd.con.local.host, dport=str(icd.con.local.port),)
+			self.client.publish(OFFERCHAN, offer_url=icd.url,remote_host=icd.con.remote.host, remote_port=str(icd.con.remote.port),
+				local_host=icd.con.local.host, local_port=str(icd.con.local.port),)
 		except Exception as e:
 			logger.warn('exception when publishing: {0}'.format(e))
-	
+
 	def handle_incident_dionaea_service_shell_listen(self, icd):
 		if not hasattr(icd, 'con') or not self.client.connected: return
 		logger.debug('emu_services, publishing...')
 		try:
-			self.client.publish(EMU_SERVICECHAN, emu_service_url="bindshell://"+str(icd.port),saddr=icd.con.remote.host, sport=str(icd.con.remote.port),
-				daddr=icd.con.local.host, dport=str(icd.con.local.port),)
+			self.client.publish(EMU_SERVICECHAN, emu_service_url="bindshell://"+str(icd.port),remote_host=icd.con.remote.host, remote_port=str(icd.con.remote.port),
+				local_host=icd.con.local.host, local_port=str(icd.con.local.port),)
 		except Exception as e:
-			logger.warn('exception when publishing: {0}'.format(e))	
+			logger.warn('exception when publishing: {0}'.format(e))
+				
 	def handle_incident_dionaea_service_shell_connect(self, icd):
 		if not hasattr(icd, 'con') or not self.client.connected: return
 		logger.debug('emu_services, publishing...')
 		try:
-			self.client.publish(EMU_SERVICESCHAN, emu_service_url="connectbackshell://"+str(icd.host)+":"+str(icd.port),saddr=icd.con.remote.host, sport=str(icd.con.remote.port),
-				daddr=icd.con.local.host, dport=str(icd.con.local.port),)
+			self.client.publish(EMU_SERVICESCHAN, emu_service_url="connectbackshell://"+str(icd.host)+":"+str(icd.port),remote_host=icd.con.remote.host, remote_port=str(icd.con.remote.port),
+				local_host=icd.con.local.host, local_port=str(icd.con.local.port),)
 		except Exception as e:
 			logger.warn('exception when publishing: {0}'.format(e))
 
@@ -303,17 +404,17 @@ class hpfeedihandler(ihandler):
 		if not hasattr(icd, 'con') or not self.client.connected: return
 		logger.debug('p0f, publishing...')
 		try:
-			self.client.publish(P0FCHAN, p0f_genre=icd.genre, p0f_link=icd.link, p0f_detail=icd.detail, p0f_uptime=icd.uptime, p0f_tos=icd.tos, p0f_dist=icd.dist, p0f_nat=icd.nat, p0f_fw=icd.fw,saddr=icd.con.remote.host, sport=str(icd.con.remote.port),
-				daddr=icd.con.local.host, dport=str(icd.con.local.port),)
+			self.client.publish(P0FCHAN, p0f_genre=icd.genre, p0f_link=icd.link, p0f_detail=icd.detail, p0f_uptime=icd.uptime, p0f_tos=icd.tos, p0f_dist=icd.dist, p0f_nat=icd.nat, p0f_fw=icd.fw,remote_host=icd.con.remote.host, remote_port=str(icd.con.remote.port),
+				local_host=icd.con.local.host, local_port=str(icd.con.local.port),)
 		except Exception as e:
 			logger.warn('exception when publishing: {0}'.format(e))
-	
+
 	def handle_incident_dionaea_modules_python_smb_dcerpc_bind(self, icd):
 		if not hasattr(icd, 'con') or not self.client.connected: return
 		logger.debug('dcerpc_bind, publishing dcerpcbind_transfersyntax {0}'.format(icd.transfersyntax))
 		try:
-			self.client.publish(DECRPCBINDCHAN, dcerpcbind_uuid=icd.uuid, dcerpcbind_transfersyntax=icd.transfersyntax,saddr=icd.con.remote.host, sport=str(icd.con.remote.port),
-				daddr=icd.con.local.host, dport=str(icd.con.local.port),)
+			self.client.publish(DECRPCBINDCHAN, dcerpcbind_uuid=icd.uuid, dcerpcbind_transfersyntax=icd.transfersyntax,remote_host=icd.con.remote.host, remote_port=str(icd.con.remote.port),
+				local_host=icd.con.local.host, local_port=str(icd.con.local.port),)
 		except Exception as e:
 			logger.warn('exception when publishing: {0}'.format(e))
 
@@ -321,10 +422,10 @@ class hpfeedihandler(ihandler):
 		if not hasattr(icd, 'con') or not self.client.connected: return
 		logger.debug('mssql_login, publishing...')
 		try:
-			self.client.publish(LOGINSCHAN, login_username=icd.username, login_password=icd.password,saddr=icd.con.remote.host, sport=str(icd.con.remote.port),
-				daddr=icd.con.local.host, dport=str(icd.con.local.port),)
-			self.client.publish(MSSQL_FINGERPRINTSCHAN,mssql_fingerprint_hostname=icd.hostname, mssql_fingerprint_appname=icd.appname, mssql_fingerprint_cltintname=icd.cltintname,saddr=icd.con.remote.host, sport=str(icd.con.remote.port),
-				daddr=icd.con.local.host, dport=str(icd.con.local.port),)
+			self.client.publish(LOGINSCHAN, login_username=icd.username, login_password=icd.password,remote_host=icd.con.remote.host, remote_port=str(icd.con.remote.port),
+				local_host=icd.con.local.host, local_port=str(icd.con.local.port),)
+			self.client.publish(MSSQL_FINGERPRINTSCHAN,mssql_fingerprint_hostname=icd.hostname, mssql_fingerprint_appname=icd.appname, mssql_fingerprint_cltintname=icd.cltintname,remote_host=icd.con.remote.host, remote_port=str(icd.con.remote.port),
+				local_host=icd.con.local.host, local_port=str(icd.con.local.port),)
 		except Exception as e:
 			logger.warn('exception when publishing: {0}'.format(e))
 
@@ -332,8 +433,7 @@ class hpfeedihandler(ihandler):
 		if not hasattr(icd, 'con') or not self.client.connected: return
 		logger.debug('mssql_cmd, publishing...')
 		try:
-			self.client.publish(MSSQL_COMMANDSCHAN, mssql_command_statu=icd.status, mssql_command_cmd=icd.cmd,saddr=icd.con.remote.host, sport=str(icd.con.remote.port),
-				daddr=icd.con.local.host, dport=str(icd.con.local.port),)
+			self.client.publish(MSSQL_COMMANDSCHAN, mssql_command_statu=icd.status, mssql_command_cmd=icd.cmd,remote_host=icd.con.remote.host, remote_port=str(icd.con.remote.port),
+				local_host=icd.con.local.host, local_port=str(icd.con.local.port),)
 		except Exception as e:
 			logger.warn('exception when publishing: {0}'.format(e))	
-
