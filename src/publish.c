@@ -122,14 +122,14 @@ int publish(u_char *buf) {
 	char *errmsg;
 	int s;
 	struct hostent *he;
-	struct sockaddr_in host;
+	
 	u_int32_t nonce = 0;
 
 	hpfdcmd=C_UNKNOWN;
 	msg = NULL;
 
-	memset(&host, 0, sizeof(struct sockaddr_in));
-	host.sin_family = AF_INET;
+	
+	
 	hpfdcmd = C_PUBLISH;
 	char *cfgname="hpfeeds.cfg";
 	u_char channel[50] = "dionaea.bistream";
@@ -142,29 +142,56 @@ int publish(u_char *buf) {
 	readConfig(cfgname,"IDENT",(char *)ident);
 	readConfig(cfgname,"SECRET",(char *)secret);
 	readConfig(cfgname,"CHANNEL",(char *)channel);
+	
 	if ((he = gethostbyname(hostname)) == NULL) {
 		perror("gethostbyname()");
 		return -1;
 	}
 
-	if (he->h_addrtype != AF_INET) {
+	if (he->h_addrtype == AF_INET) {
+		struct sockaddr_in host;
+		bzero(&host, sizeof(host));
+		host.sin_family = AF_INET;
+		host.sin_addr = *(struct in_addr *) he->h_addr;
+		host.sin_port = htons(strtoul(port, 0, 0));
+		// connect to broker
+		if ((s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+			perror("socket()");
+			return -1;
+		}
+		fprintf(stderr, "connecting to %s:%u\n", inet_ntoa(host.sin_addr), ntohs(host.sin_port));
+		if (connect(s, (struct sockaddr *) &host, sizeof(host)) == -1) {
+			perror("connect()");
+			return -1;
+		}
+	}
+	else if (he->h_addrtype == AF_INET6) {
+		struct sockaddr_in6 host;
+		bzero(&host, sizeof(host));
+		host.sin6_family = AF_INET6;
+		if ( inet_pton(AF_INET6, he->h_addr, &host.sin6_addr) < 0 ) {
+			perror("inet_pton()");
+			return -1;     
+		 }
+		host.sin6_port = htons(strtoul(port, 0, 0));
+		// connect to broker
+		if ((s = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+			perror("socket()");
+			return -1;
+		}
+		//fprintf(stderr, "connecting to %s:%u\n", inet_ntoa(host.sin6_addr), ntohs(host.sin6_port));
+		if (connect(s, (struct sockaddr *) &host, sizeof(host)) == -1) {
+			perror("connect()");
+			return -1;
+		}
+	}
+	else{
 		fprintf(stderr, "Unsupported address type\n");
 		return -1;
 	}
-	host.sin_addr = *(struct in_addr *) he->h_addr;
-	
-	host.sin_port = htons(strtoul(port, 0, 0));
 
-	// connect to broker
-	if ((s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
-		perror("socket()");
-		return -1;
-	}
-	fprintf(stderr, "connecting to %s:%u\n", inet_ntoa(host.sin_addr), ntohs(host.sin_port));
-	if (connect(s, (struct sockaddr *) &host, sizeof(host)) == -1) {
-		perror("connect()");
-		return -1;
-	}
+
+
 
 	session_state = S_INIT; // initial session state
 
@@ -234,7 +261,7 @@ int publish(u_char *buf) {
 			// msg is still valid
 			if ((errmsg = calloc(1, msg->hdr.msglen - sizeof(msg->hdr))) == NULL) {
 				perror("calloc()");
-				exit(EXIT_FAILURE);
+				return -1;
 			}
 			memcpy(errmsg, msg->data, msg->hdr.msglen - sizeof(msg->hdr));
 
