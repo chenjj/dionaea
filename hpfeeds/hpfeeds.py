@@ -258,7 +258,7 @@ class hpfeedihandler(ihandler):
 	def connection_publish(self, icd, con_type):
 		try:
 			con=icd.con
-			self.client.publish(CONNCHAN, connection_type=con_type, connection_tran=con.transport, connection_protocol=con.protocol, remote_host=con.remote.host, remote_port=con.remote.port, remote_hostname=con.remote.hostname, local_host=con.local.host, local_port=con.local.port)
+			self.client.publish(CONNCHAN, connection_type=con_type, connection_transport=con.transport, connection_protocol=con.protocol, remote_host=con.remote.host, remote_port=con.remote.port, remote_hostname=con.remote.hostname, local_host=con.local.host, local_port=con.local.port)
 		except Exception as e:
 			logger.warn('exception when publishing: {0}'.format(e))
 
