@@ -1,0 +1,188 @@
+Description: Change /usr/var to /var
+ dionaea-nisl (0.1.0.2-1) precise; urgency=low
+ .
+   * Reset orig
+Author: Xiaoyu Liu (Vury Leo) <i@vuryleo.com>
+
+---
+The information above should follow the Patch Tagging Guidelines, please
+checkout http://dep.debian.net/deps/dep3/ to learn about the format. Here
+are templates for supplementary fields that you might want to add:
+
+Origin: <vendor|upstream|other>, <url of original patch>
+Bug: <url in upstream bugtracker>
+Bug-Debian: http://bugs.debian.org/<bugnumber>
+Bug-Ubuntu: https://launchpad.net/bugs/<bugnumber>
+Forwarded: <no|not-needed|url proving that it has been forwarded>
+Reviewed-By: <name and email of someone who approved the patch>
+Last-Update: <YYYY-MM-DD>
+
+--- dionaea-nisl-0.1.0.1.orig/README
++++ dionaea-nisl-0.1.0.1/README
+@@ -688,7 +688,7 @@ shows the help, the -H includes the defa
+ examples:
+ # dionaea -l all,-debug -L '*'
+ # dionaea -l all,-debug -L 'con*,py*'
+-# dionaea -u nobody -g nogroup -r /usr/ -w /usr -p /usr/var/dionaea.pid
++# dionaea -u nobody -g nogroup -r /usr/ -w /usr -p /var/dionaea.pid
+
+
+     Configuration - dionaea.conf
+@@ -715,9 +715,9 @@ As dionaea is pretty ... verbose, it is
+ using logrotate.
+
+ # logrotate requires dionaea to be started with a pidfile
+-# in this case -p /usr/var/run/dionaea.pid
++# in this case -p /var/run/dionaea.pid
+ # adjust the path to your needs
+-/usr/var/log/dionaea*.log {
++/var/log/dionaea*.log {
+         notifempty
+         missingok
+         rotate 28
+@@ -727,7 +727,7 @@ using logrotate.
+         create 660 root root
+         dateext
+         postrotate
+-                kill -HUP `cat /usr/var/run/dionaea.pid`
++                kill -HUP `cat /var/run/dionaea.pid`
+         endscript
+ }
+
+@@ -792,7 +792,7 @@ writeable by the user, as well as the lo
+ So, if you drop user privs, make sure the user you drop to is allowed to
+ read/write the file and the directory.
+
+-chown MYUSER:MYGROUP /usr/var/dionaea -R
++chown MYUSER:MYGROUP /var/dionaea -R
+
+
+
+@@ -1016,7 +1016,7 @@ To create such report for your own honey
+ hours run:
+
+
+-./readlogsqltree.py  -t $(date '+%s')-24*3600 /usr/var/dionaea/logsql.sqlite
++./readlogsqltree.py  -t $(date '+%s')-24*3600 /var/dionaea/logsql.sqlite
+
+
+           gnuplotsql <#gnuplotsql> - modules/python/gnuplotsql.py
+@@ -1029,7 +1029,7 @@ Here <gnuplotsql> is how the whole thing
+ To create such images of your own data, run:
+
+
+-./gnuplotsql.py -d /usr/var/dionaea/logsql.sqlite -p smbd -p epmapper -p mssqld -p httpd -p ftpd
++./gnuplotsql.py -d /var/dionaea/logsql.sqlite -p smbd -p epmapper -p mssqld -p httpd -p ftpd
+
+
+           pg_backend <#pg_backend> - modules/python/xmpp/pg_backend.py
+--- dionaea-nisl-0.1.0.1.orig/modules/python/util/gnuplotsql.py
++++ dionaea-nisl-0.1.0.1/modules/python/util/gnuplotsql.py
+@@ -513,7 +513,7 @@ def plot_overview_data(ranges, path_dest
+
+ if __name__ == "__main__":
+ 	parser = OptionParser()
+-	parser.add_option("-d", "--database", action="store", type="string", dest="database", default="/usr/var/dionaea/logsql.sqlite")
++	parser.add_option("-d", "--database", action="store", type="string", dest="database", default="/var/dionaea/logsql.sqlite")
+ 	parser.add_option("-D", "--destination", action="store", type="string", dest="destination", default="/tmp/dionaea-gnuplot")
+ 	parser.add_option("-t", "--tempfile", action="store", type="string", dest="tempfile", default="/tmp/dionaea-gnuplotsql.data")
+ 	parser.add_option('-p', '--protocol', dest='protocols', help='none', 	type="string", action="append")
+--- dionaea-nisl-0.1.0.1.orig/modules/python/util/readlogsqltree.py
++++ dionaea-nisl-0.1.0.1/modules/python/util/readlogsqltree.py
+@@ -372,7 +372,7 @@ def recursive_print(cursor, connection,
+ 		recursive_print(cursor, c['connection'], indent+2)
+
+ def print_db(opts, args):
+-	dbpath = '/usr/var/dionaea/logsql.sqlite'
++	dbpath = '/var/dionaea/logsql.sqlite'
+ 	if len(args) >= 1:
+ 		dbpath = args[0]
+ 	print("using database located at {0}".format(dbpath))
+--- dionaea-nisl-0.1.0.1.orig/doc/html/index.html
++++ dionaea-nisl-0.1.0.1/doc/html/index.html
+@@ -902,7 +902,7 @@ date, you can use
+ examples:
+ # dionaea -l all,-debug -L '*'
+ # dionaea -l all,-debug -L 'con*,py*'
+-# dionaea -u nobody -g nogroup -r /usr/ -w /usr -p /usr/var/dionaea.pid
++# dionaea -u nobody -g nogroup -r /usr/ -w /usr -p /var/dionaea.pid
+ </pre>
+
+     <h2 id="configuration">Configuration - dionaea.conf</h2>
+@@ -940,9 +940,9 @@ examples:
+         the logfiles using logrotate.
+         <pre>
+ # logrotate requires dionaea to be started with a pidfile
+-# in this case -p /usr/var/run/dionaea.pid
++# in this case -p /var/run/dionaea.pid
+ # adjust the path to your needs
+-/usr/var/log/dionaea*.log {
++/var/log/dionaea*.log {
+         notifempty
+         missingok
+         rotate 28
+@@ -952,7 +952,7 @@ examples:
+         create 660 root root
+         dateext
+         postrotate
+-                kill -HUP `cat /usr/var/run/dionaea.pid`
++                kill -HUP `cat /var/run/dionaea.pid`
+         endscript
+ }
+ </pre><i>/etc/logrotate.d/dionaea</i><br />
+@@ -1035,7 +1035,7 @@ examples:
+       So, if you drop user privs, make sure the user you drop to is
+       allowed to read/write the file and the directory.<br />
+       <pre>
+-chown MYUSER:MYGROUP /usr/var/dionaea -R
++chown MYUSER:MYGROUP /var/dionaea -R
+ </pre><br />
+       <br />
+       To query the logsql database, I recommend looking at the
+@@ -1341,7 +1341,7 @@ already.<br />
+       the last 24 hours run:
+       <pre>
+
+-./readlogsqltree.py  -t $(date '+%s')-24*3600 /usr/var/dionaea/logsql.sqlite
++./readlogsqltree.py  -t $(date '+%s')-24*3600 /var/dionaea/logsql.sqlite
+
+ </pre>
+     </div>
+@@ -1362,7 +1362,7 @@ already.<br />
+       To create such images of your own data, run:
+       <pre>
+
+-./gnuplotsql.py -d /usr/var/dionaea/logsql.sqlite -p smbd -p epmapper -p mssqld -p httpd -p ftpd
++./gnuplotsql.py -d /var/dionaea/logsql.sqlite -p smbd -p epmapper -p mssqld -p httpd -p ftpd
+
+ </pre>The blog got something on gnuplotsql as well:
+
+--- dionaea-nisl-0.1.0.1.orig/conf/dionaea.conf.dist
++++ dionaea-nisl-0.1.0.1/conf/dionaea.conf.dist
+@@ -1,13 +1,13 @@
+ logging = {
+ 	default = {
+-		// file not starting with / is taken relative to LOCALESTATEDIR (e.g. /usr/var)
++		// file not starting with / is taken relative to LOCALESTATEDIR (e.g. /var)
+ 		file = "log/dionaea.log"
+ 		levels = "all"
+ 		domains = "*"
+     }
+
+ 	errors = {
+-		// file not starting with / is taken relative to LOCALESTATEDIR (e.g. /usr/var)
++		// file not starting with / is taken relative to LOCALESTATEDIR (e.g. /var)
+ 		file = "log/dionaea-errors.log"
+ 		levels = "warning,error"
+ 		domains = "*"
+--- dionaea-nisl-0.1.0.1.orig/src/dionaea.c
++++ dionaea-nisl-0.1.0.1/src/dionaea.c
+@@ -449,7 +449,7 @@ void show_help(bool defaults)
+ 	puts("\n\nexamples:\n"
+ 		 "\t# dionaea -l all,-debug -L '*'\n"
+ 		 "\t# dionaea -l all,-debug -L 'con*,py*'\n"
+-		 "\t# dionaea -u nobody -g nogroup -w /usr -p /usr/var/run/dionaea.pid\n");
++		 "\t# dionaea -u nobody -g nogroup -w /usr -p /var/run/dionaea.pid\n");
+
+ }
+
