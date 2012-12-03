@@ -1,13 +1,13 @@
 logging = {
 	default = {
-		// file not starting with / is taken relative to LOCALESTATEDIR (e.g. /usr/var)
+		// file not starting with / is taken relative to LOCALESTATEDIR (e.g. /var)
 		file = "log/dionaea.log"
 		levels = "all"
 		domains = "*"
     }
 
 	errors = {
-		// file not starting with / is taken relative to LOCALESTATEDIR (e.g. /usr/var)
+		// file not starting with / is taken relative to LOCALESTATEDIR (e.g. /var)
 		file = "log/dionaea-errors.log"
 		levels = "warning,error"
 		domains = "*"

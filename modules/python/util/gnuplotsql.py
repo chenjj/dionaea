@@ -513,7 +513,7 @@ def plot_overview_data(ranges, path_destination, filename_data, protocol, filena
 
 if __name__ == "__main__":
 	parser = OptionParser()
-	parser.add_option("-d", "--database", action="store", type="string", dest="database", default="/usr/var/dionaea/logsql.sqlite")
+	parser.add_option("-d", "--database", action="store", type="string", dest="database", default="/var/dionaea/logsql.sqlite")
 	parser.add_option("-D", "--destination", action="store", type="string", dest="destination", default="/tmp/dionaea-gnuplot")
 	parser.add_option("-t", "--tempfile", action="store", type="string", dest="tempfile", default="/tmp/dionaea-gnuplotsql.data")
 	parser.add_option('-p', '--protocol', dest='protocols', help='none', 	type="string", action="append")

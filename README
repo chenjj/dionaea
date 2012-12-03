@@ -688,7 +688,7 @@ shows the help, the -H includes the default values.
 examples:
 # dionaea -l all,-debug -L '*'
 # dionaea -l all,-debug -L 'con*,py*'
-# dionaea -u nobody -g nogroup -r /usr/ -w /usr -p /usr/var/dionaea.pid
+# dionaea -u nobody -g nogroup -r /usr/ -w /usr -p /var/dionaea.pid
 
 
     Configuration - dionaea.conf
@@ -715,9 +715,9 @@ As dionaea is pretty ... verbose, it is useful to rotate the logfiles
 using logrotate.
 
 # logrotate requires dionaea to be started with a pidfile
-# in this case -p /usr/var/run/dionaea.pid
+# in this case -p /var/run/dionaea.pid
 # adjust the path to your needs
-/usr/var/log/dionaea*.log {
+/var/log/dionaea*.log {
         notifempty
         missingok
         rotate 28
@@ -727,7 +727,7 @@ using logrotate.
         create 660 root root
         dateext
         postrotate
-                kill -HUP `cat /usr/var/run/dionaea.pid`
+                kill -HUP `cat /var/run/dionaea.pid`
         endscript
 }
 
@@ -792,7 +792,7 @@ writeable by the user, as well as the logsql.sqlite file itself.
 So, if you drop user privs, make sure the user you drop to is allowed to
 read/write the file and the directory.
 
-chown MYUSER:MYGROUP /usr/var/dionaea -R
+chown MYUSER:MYGROUP /var/dionaea -R
 
 
 
@@ -1016,7 +1016,7 @@ To create such report for your own honeypots activities for the last 24
 hours run:
 
 
-./readlogsqltree.py  -t $(date '+%s')-24*3600 /usr/var/dionaea/logsql.sqlite
+./readlogsqltree.py  -t $(date '+%s')-24*3600 /var/dionaea/logsql.sqlite
 
 
           gnuplotsql <#gnuplotsql> - modules/python/gnuplotsql.py
@@ -1029,7 +1029,7 @@ Here <gnuplotsql> is how the whole thing looks like.
 To create such images of your own data, run:
 
 
-./gnuplotsql.py -d /usr/var/dionaea/logsql.sqlite -p smbd -p epmapper -p mssqld -p httpd -p ftpd
+./gnuplotsql.py -d /var/dionaea/logsql.sqlite -p smbd -p epmapper -p mssqld -p httpd -p ftpd
 
 
           pg_backend <#pg_backend> - modules/python/xmpp/pg_backend.py
