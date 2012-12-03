@@ -1,0 +1,403 @@
+Description: Change default settings
+ dionaea-nisl (0.1.0.2-0.2) precise; urgency=low
+ .
+   * Changeing default sqlite pos from var to /var
+Author: Xiaoyu Liu (Vury Leo) <i@vuryleo.com>
+
+---
+The information above should follow the Patch Tagging Guidelines, please
+checkout http://dep.debian.net/deps/dep3/ to learn about the format. Here
+are templates for supplementary fields that you might want to add:
+
+Origin: <vendor|upstream|other>, <url of original patch>
+Bug: <url in upstream bugtracker>
+Bug-Debian: http://bugs.debian.org/<bugnumber>
+Bug-Ubuntu: https://launchpad.net/bugs/<bugnumber>
+Forwarded: <no|not-needed|url proving that it has been forwarded>
+Reviewed-By: <name and email of someone who approved the patch>
+Last-Update: <YYYY-MM-DD>
+
+--- dionaea-nisl-0.1.0.2.orig/conf/dionaea.conf.dist
++++ dionaea-nisl-0.1.0.2/conf/dionaea.conf.dist
+@@ -1,28 +1,28 @@
+ logging = {
+ 	default = {
+-		// file not starting with / is taken relative to LOCALESTATEDIR (e.g. /var)
++		// file not starting with / is taken relative to LOCALESTATEDIR (e.g. //var)
+ 		file = "log/dionaea.log"
+ 		levels = "all"
+ 		domains = "*"
+     }
+
+ 	errors = {
+-		// file not starting with / is taken relative to LOCALESTATEDIR (e.g. /var)
++		// file not starting with / is taken relative to LOCALESTATEDIR (e.g. //var)
+ 		file = "log/dionaea-errors.log"
+ 		levels = "warning,error"
+ 		domains = "*"
+ 	}
+ }
+
+-processors =
+-{
+-	filter-emu =
++processors =
++{
++	filter-emu =
+ 	{
+ 		config = {
+ 			allow = [{ protocol = ["smbd","epmapper","nfqmirrord","mssqld"] }]
+ 		}
+ 		next = {
+-			emu =
++			emu =
+ 			{
+ 				config = {
+ 					emulation = {
+@@ -38,9 +38,9 @@ processors =
+ 						}
+
+ 						/**
+-						 * api default arguments for development
++						 * api default arguments for development
+ 						 * disabled by default
+-						 * not working yet
++						 * not working yet
+ 						 */
+ 						api = {
+ 							connect = {
+@@ -54,7 +54,7 @@ processors =
+ 		}
+ 	}
+
+-	filter-streamdumper =
++	filter-streamdumper =
+ 	{
+ 		config = {
+ 			allow = [
+@@ -68,13 +68,13 @@ processors =
+ 		next = {
+ 			streamdumper = {
+ 				config = {
+-					path = "var/dionaea/bistreams/%Y-%m-%d/"
++					path = "/var/dionaea/bistreams/%Y-%m-%d/"
+ 				}
+ 			}
+ 		}
+ 	}
+
+-/*	filter-sessions =
++/*	filter-sessions =
+ 	{
+ 		config = {
+ 			allow = [ { protocol = ["ftpctrl","remoteshell"] } ]
+@@ -90,23 +90,23 @@ processors =
+
+ downloads =
+ {
+-	dir = "var/dionaea/binaries"
++	dir = "/var/dionaea/binaries"
+ 	tmp-suffix = ".tmp"
+ }
+
+ bistreams =
+ {
+-	python =
++	python =
+ 	{
+-		dir = "var/dionaea/bistreams"
++		dir = "/var/dionaea/bistreams"
+ 	}
+ }
+
+-submit =
++submit =
+ {
+ 	defaults = {
+ 		urls = ["http://anubis.iseclab.org/nepenthes_action.php",
+-				"http://onlineanalyzer.norman.com/nepenthes_upload.php",
++				"http://onlineanalyzer.norman.com/nepenthes_upload.php",
+ 				"http://luigi.informatik.uni-mannheim.de/submit.php?action=verify"]
+ 		email = "nepenthesdev@gmail.com"
+ 		file_fieldname = "upfile"
+@@ -135,7 +135,7 @@ submit =
+ */
+
+ /*
+-	yoursection =
++	yoursection =
+ 	{
+ 		urls = ["http://127.0.0.1/submit"]
+ 		email = "yourmail"
+@@ -145,7 +145,7 @@ submit =
+ */
+ }
+
+-listen =
++listen =
+ {
+ 	/* basically we have 3 modes
+ 	   - getifaddrs - auto
+@@ -159,23 +159,23 @@ listen =
+ 		 will do the trick
+ 		 if you want to throw in ipv6 support as well ...
+ 		 addrs = { eth0 = ["::"] }
+-		 note: ipv6 does not work with surfids yet,
++		 note: ipv6 does not work with surfids yet,
+ 		 as ipv6 addresses are mapped to ipv4 and surfids fails to retrieve the sensor id for ::ffff:1.2.3.4
+-	   - nl, will require a list of interfaces
++	   - nl, will require a list of interfaces
+ 	     fnmatch is possible like
+ 		 interfaces = ["ppp*","tun*"]
+ 		 and loading the nl module AFTER the python module in the modules section below
+-		 nl will use the kernel netlink interface to figure out which addresses exist
++		 nl will use the kernel netlink interface to figure out which addresses exist
+ 		 at runtime, and start/stop services dynamically per address per interface
+ 	*/
+-
++
+ 	mode = "getifaddrs"
+ 	addrs = { eth0 = ["::"] }
+ }
+
+ modules = {
+
+-	curl =
++	curl =
+ 	{
+ 		protocol = "http"
+ 	}
+@@ -185,23 +185,23 @@ modules = {
+ 		profile = "1"
+ 	}
+
+-	pcap =
++	pcap =
+ 	{
+-		/**
+-       	 * libpcap 1.0.0
+-       	 *
+-       	 * "Arithmetic expression against transport layer headers, like
+-       	 * tcp[0], does not work  against  IPv6  packets. It  only looks
++		/**
++       	 * libpcap 1.0.0
++       	 *
++       	 * "Arithmetic expression against transport layer headers, like
++       	 * tcp[0], does not work  against  IPv6  packets. It  only looks
+        	 * at IPv4 packets."
+-       	 *
+-       	 * As a consequence, the default filter can not match
++       	 *
++       	 * As a consequence, the default filter can not match
+        	 * ipv6 tcp rst packets.
+-       	 *
++       	 *
+        	 * If you want to go for rejected ipv6, remove the tcp matching part of the filter
+-       	 * The code is capable to checking the tcp-rst flag and seq number itself, but
++       	 * The code is capable to checking the tcp-rst flag and seq number itself, but
+        	 * matching every packet in userspace is expensive.
+        	 * Therefore you'll have to hack the code if you want to track ipv6 rejected connections
+-       	 *
++       	 *
+ 		 * Format is IFACE = { addrs = MODE }
+ 		 * currently mode is ignored
+        	 */
+@@ -212,9 +212,9 @@ modules = {
+ 	}
+
+ 	nfq =
+-	{
+-		/**
+-		 * queue has to be the nfqueue num
++	{
++		/**
++		 * queue has to be the nfqueue num
+ 		 * refer to http://dionaea.carnivore.it/#nfq_python
+ 		 * if you do not specify a queue-num with iptables, 0 is the default
+ 		 */
+@@ -233,13 +233,13 @@ modules = {
+ 					"services",
+ 					"ihandlers"]
+ 		ftp = {
+-			root = "var/dionaea/wwwroot"
++			root = "/var/dionaea/wwwroot"
+
+ 			/* ftp client section
+ 			 */
+
+ 			/* ports for active ftp
+-			 * string indicating a range
++			 * string indicating a range
+ 			 */
+ 			active-ports = "63001-64000"
+
+@@ -250,10 +250,10 @@ modules = {
+ 			active-host = "0.0.0.0"
+ 		}
+ 		tftp = {
+-			root = "var/dionaea/wwwroot"
++			root = "/var/dionaea/wwwroot"
+ 		}
+ 		http = {
+-			root = "var/dionaea/wwwroot"
++			root = "/var/dionaea/wwwroot"
+ 			max-request-size = "32768" // maximum size in kbytes of the request (32MB)
+ 		}
+ 		sip = {
+@@ -266,7 +266,7 @@ modules = {
+ 			tls = {
+ 				port = "5061"
+ 			}
+-			users = "var/dionaea/sipaccounts.sqlite"
++			users = "/var/dionaea/sipaccounts.sqlite"
+ 			rtp = {
+ 				enable = "yes"
+ 				/* how to dump the rtp stream
+@@ -275,7 +275,7 @@ modules = {
+ 				mode = ["bistream", "pcap"]
+
+ 				pcap = {
+-					path = "var/dionaea/rtp/{personality}/%Y-%m-%d/"
++					path = "/var/dionaea/rtp/{personality}/%Y-%m-%d/"
+ 					filename = "%H:%M:%S_{remote_host}_{remote_port}_in.pcap"
+ 				}
+ 			}
+@@ -306,7 +306,7 @@ modules = {
+ 				play-hello = {
+ 					do = "play"
+ 					params = {
+-						file = "var/dionaea/.../file.ext"
++						file = "/var/dionaea/.../file.ext"
+ 					}
+ 				}
+ 			}
+@@ -321,7 +321,7 @@ modules = {
+ 		}
+ 		virustotal = {
+ 			apikey = "........." // grab it from your virustotal account at My account -> Inbox -> Public API
+-			file = "var/dionaea/vtcache.sqlite"
++			file = "/var/dionaea/vtcache.sqlite"
+ 		}
+ 		mwserv = {			// ask your mwserv backend provider for needed values
+ 			url = "" 		// the url to send the submission requests to
+@@ -353,7 +353,7 @@ modules = {
+ 		logsql = {
+ 			mode = "sqlite" // so far there is only sqlite
+ 			sqlite = {
+-				file = "var/dionaea/logsql.sqlite"
++				file = "/var/dionaea/logsql.sqlite"
+ 			}
+ 		}
+ 		logxmpp = {
+@@ -365,7 +365,7 @@ modules = {
+ 				server = "sensors.carnivore.it"
+
+ 				/**
+-				 * as dionaea does not support starttls (xmpp on port 5223),
++				 * as dionaea does not support starttls (xmpp on port 5223),
+ 				 * we rely on 'legacy ssl' for the xmpp connection (port 5222)
+ 				 */
+ 				port = "5223"
+@@ -382,16 +382,16 @@ modules = {
+ 				 * the default resource is a random string of 8 chars
+ 				 */
+ 				// resource = "theresource"
+-				config =
++				config =
+ 				{
+ 					/**
+ 					 * this defines a muc channel
+ 					 */
+-					anon-events =
++					anon-events =
+ 					{
+ 						/**
+ 						 * incidents matching these events will get relayed to the channel
+-						 */
++						 */
+ 						events = ["^dionaea\x5c.connection\x5c..*",
+ 									"^dionaea\x5c.modules\x5c.python\x5c.smb.dcerpc\x5c.*",
+ 									"^dionaea\x5c.download\x5c.offer$",
+@@ -409,18 +409,18 @@ modules = {
+ 					}
+
+ 					anon-files =
+-					{
++					{
+ 						events = ["^dionaea\x5c.download\x5c.complete\x5c.unique"]
+ 					}
+ 				}
+ 			}
+ 		}
+ 		nfq = {
+-			/**
++			/**
+ 			 * nfq can intercept incoming tcp connections during the tcp handshake
+-			 * giving your honeypot the possibility to provide service on
++			 * giving your honeypot the possibility to provide service on
+ 			 * ports which are not served by default.
+-			 * refer to the documentation (http://dionaea.carnivore.it/#nfq_python)
++			 * refer to the documentation (http://dionaea.carnivore.it/#nfq_python)
+ 			 * BEFORE using this
+ 			 */
+
+@@ -446,19 +446,19 @@ modules = {
+ 		}
+ 		p0f = {
+ 			/**
+-			 * start p0f with
++			 * start p0f with
+ 			 * sudo p0f -i any -u root -Q /tmp/p0f.sock -q -l
+ 			 */
+ 			path = "un:///tmp/p0f.sock"
+ 		}
+
+ 		fail2ban = {
+-			downloads = "var/dionaea/downloads.f2b"
+-			offers = "var/dionaea/offers.f2b"
++			downloads = "/var/dionaea/downloads.f2b"
++			offers = "/var/dionaea/offers.f2b"
+ 		}
+
+ 		ihandlers = {
+-			handlers = ["ftpdownload", "tftpdownload", "emuprofile", "cmdshell", "store", "uniquedownload",
++			handlers = ["ftpdownload", "tftpdownload", "emuprofile", "cmdshell", "store", "uniquedownload",
+ 			"logsql",
+ //			"virustotal",
+ //			"mwserv",
+@@ -477,7 +477,7 @@ modules = {
+
+ 	}
+
+-	nl =
++	nl =
+ 	{
+ 		lookup_ethernet_addr = "no" // set to yes in case you are interested in the mac address  of the remote (only works for lan)
+
+@@ -485,7 +485,7 @@ modules = {
+
+
+ 	/* nc is a test module */
+-/*	nc =
++/*	nc =
+ 	{
+ 		services = [
+ 			{
+@@ -539,7 +539,7 @@ modules = {
+ 					listen = "15"
+ 					connect = "15"
+ 				}
+-			},
++			},
+ 			{
+ 				proto = "redir"
+ 				type = "tls"
+@@ -653,7 +653,7 @@ modules = {
+ 					connect = "15"
+ 					reconnect = "5"
+ 				}
+-			},
++			},
+ 			{
+ 				proto = "source"
+ 				type = "tls"
