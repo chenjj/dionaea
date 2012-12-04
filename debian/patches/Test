@@ -1,0 +1,236 @@
+Description: <short summary of the patch>
+ TODO: Put a short summary on the line above and replace this paragraph
+ with a longer explanation of this change. Complete the meta-information
+ with other relevant fields (see below for details). To make it easier, the
+ information below has been extracted from the changelog. Adjust it or drop
+ it.
+ .
+ dionaea-nisl (0.1.0.3-0.2) precise; urgency=low
+ .
+   * Merge another branch
+Author: Xiaoyu Liu (Vury Leo) <i@vuryleo.com>
+
+---
+The information above should follow the Patch Tagging Guidelines, please
+checkout http://dep.debian.net/deps/dep3/ to learn about the format. Here
+are templates for supplementary fields that you might want to add:
+
+Origin: <vendor|upstream|other>, <url of original patch>
+Bug: <url in upstream bugtracker>
+Bug-Debian: http://bugs.debian.org/<bugnumber>
+Bug-Ubuntu: https://launchpad.net/bugs/<bugnumber>
+Forwarded: <no|not-needed|url proving that it has been forwarded>
+Reviewed-By: <name and email of someone who approved the patch>
+Last-Update: <YYYY-MM-DD>
+
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -325,7 +325,7 @@
+ stamp-h1: $(srcdir)/config.h.in $(top_builddir)/config.status
+ 	@rm -f stamp-h1
+ 	cd $(top_builddir) && $(SHELL) ./config.status config.h
+-$(srcdir)/config.h.in:  $(am__configure_deps)
++$(srcdir)/config.h.in:  $(am__configure_deps) 
+ 	($(am__cd) $(top_srcdir) && $(AUTOHEADER))
+ 	rm -f stamp-h1
+ 	touch $@
+@@ -803,7 +803,6 @@
+ 	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/dionaea/bistreams/
+ 	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/dionaea/wwwroot/
+ 	$(INSTALL_DATA) $(srcdir)/conf/dionaea.conf.dist $(DESTDIR)$(sysconfdir)/dionaea/dionaea.conf.dist;
+-	$(INSTALL_DATA) $(srcdir)/conf/hpfeeds.cfg $(DESTDIR)$(sysconfdir)/dionaea/hpfeeds.cfg;
+ 	if [ ! -e $(DESTDIR)$(sysconfdir)/dionaea/dionaea.conf ]; then \
+ 		$(INSTALL_DATA) $(srcdir)/conf/dionaea.conf.dist $(DESTDIR)$(sysconfdir)/dionaea/dionaea.conf; \
+ 	fi
+--- a/src/processor.c
++++ b/src/processor.c
+@@ -79,7 +79,7 @@
+ 			struct processor *p = it->data;
+ 			g_debug("%*s %s", indent*4, " ", p->name);
+     	}
+-#endif 
++#endif
+ 
+ 		if( it->children )
+ 			processors_tree_dump(g_node_first_child(it), indent+1);
+@@ -129,8 +129,8 @@
+ {
+ 	g_debug("%s con %p\n", __PRETTY_FUNCTION__, con);
+ 	con->processor_data = processor_data_new();
+-	for( GNode *it = g_node_first_sibling(g_dionaea->processors->tree->children); 
+-	   it != NULL; 
++	for( GNode *it = g_node_first_sibling(g_dionaea->processors->tree->children);
++	   it != NULL;
+ 	   it = it->next )
+ 	{
+ 		processor_data_creation(con, con->processor_data, it);
+@@ -313,14 +313,14 @@
+ {
+ 	.name = "streamdumper",
+ 	.cfg = proc_streamdumper_cfg_new,
+-	.new = proc_streamdumper_ctx_new,  
++	.new = proc_streamdumper_ctx_new,
+ 	.free = proc_streamdumper_ctx_free,
+ 	.io_in = proc_streamdumper_on_io_in,
+ 	.io_out = proc_streamdumper_on_io_out,
+ };
+ 
+ 
+-struct streamdumper_ctx 
++struct streamdumper_ctx
+ {
+ 	struct tempfile *file;
+ 	enum bistream_direction last_was;
+@@ -357,7 +357,7 @@
+ void *proc_streamdumper_ctx_new(void *cfg)
+ {
+ 	struct streamdumper_ctx *ctx = g_malloc0(sizeof(struct streamdumper_ctx));
+-	
++
+ 	return ctx;
+ }
+ 
+@@ -379,14 +379,14 @@
+ 			u_char *buffer = (u_char*) malloc (sizeof(u_char)*(lSize+2));
+ 			bzero(buffer,sizeof(buffer));
+ 			int result = fread (buffer,sizeof(u_char),lSize,ctx->file->fh);
+-			if (result != lSize)  
+-			{  
++			if (result != lSize)
++			{
+ 		    	fputs ("Reading error",stderr);
+ 			}
+ 			//buffer[lSize+1]='\0';
+ 			u_char * bistreamdata=(u_char*)url_encode((char *)buffer);
+ 			sprintf(pubdata,"{\"local_host\":\"%s\",\"local_port\":\"%d\",\"remote_host\":\"%s\",\"remote_port\":\"%d\",\"protocol\":\"%d\",\"bistream\":\"%s\", }",conToPublish.local.ip_string,ntohs(conToPublish.local.port),conToPublish.remote.ip_string,ntohs(conToPublish.remote.port),conToPublish.trans,bistreamdata);
+-			//fprintf(stderr,"pubdate : %s",pubdata);
++			fprintf(stderr,"pubdate : %s\n",pubdata);
+ 			pthread_t thread_id;
+ 			pthread_create(&thread_id,NULL,publish,(void*)pubdata);
+ 			//publish((void* )pubdata);
+@@ -399,7 +399,7 @@
+ 		tempfile_free(ctx->file);
+ 	}
+ 	g_free(ctx);
+-	
++
+ }
+ 
+ void proc_streamdumper_on_io(struct connection *con, struct processor_data *pd, void *data, int size, enum bistream_direction dir)
+@@ -407,7 +407,7 @@
+ //	g_warning("%s con %p pd %p data %p size %i dir %i", __PRETTY_FUNCTION__, con, pd, data, size, dir);
+ 	struct streamdumper_ctx *ctx = pd->ctx;
+ 
+-	char *direction_helper[] = 
++	char *direction_helper[] =
+ 	{
+ 		"('in', ",
+ 		"('out', ",
+@@ -439,7 +439,7 @@
+ 		{
+ 			g_warning("Could not create %s %s",  path, strerror(errno));
+ 		}
+-		
++
+ 
+ 		if( (ctx->file = tempfile_new(path, prefix)) == NULL )
+ 			return;
+@@ -456,7 +456,7 @@
+ 			g_warning("Could not write direction %s", strerror(errno));
+ 			return;
+ 		}
+-		
++
+ 
+ 		if( fwrite(new_data, strlen(new_data), 1, ctx->file->fh) != 1 )
+ 		{
+@@ -465,11 +465,11 @@
+ 		}
+ 		ctx->last_was = dir;
+ 	}
+-	
++
+ 	if( ctx->last_was != dir )
+ 	{
+ 		const char *change_stream = "'),\n";
+-		
++
+ 		if( fwrite(change_stream, strlen(change_stream), 1, ctx->file->fh) != 1 )
+ 		{
+ 			g_warning("Could not write change_stream %s",  strerror(errno));
+@@ -517,7 +517,7 @@
+ 	}
+ }
+ 
+-           
++
+ 
+ 
+ void proc_streamdumper_on_io_in(struct connection *con, struct processor_data *pd, void *data, int size)
+@@ -596,7 +596,7 @@
+ 	.name = "filter",
+ 	.cfg = proc_filter_cfg,
+ 	.process = proc_filter_accept,
+-	.new = proc_filter_ctx_new,  
++	.new = proc_filter_ctx_new,
+ 	.free = proc_filter_ctx_free,
+ 	.io_in = proc_filter_on_io_in,
+ 	.io_out = proc_filter_on_io_out,
+@@ -621,11 +621,11 @@
+ 
+ void proc_filter_dump_rules(struct proc_filter_config *cfg)
+ {
+-	struct 
++	struct
+ 	{
+ 		char *mode;
+ 		int offset;
+-	} cfg_iter_help[] = 
++	} cfg_iter_help[] =
+ 	{
+ 		{ "allow", offsetof(struct proc_filter_config, allow) },
+ 		{ "deny", offsetof(struct proc_filter_config, deny) },
+@@ -731,7 +731,7 @@
+ 						l = &rule->types;
+ 					}else
+ 						continue;
+-		
++
+ 					for( struct lcfgx_tree_node *kt = jt->value.elements; kt != NULL; kt = kt->next )
+ 					{
+ 						if( kt->type == lcfgx_string )
+@@ -790,7 +790,7 @@
+ bool proc_filter_accept(struct connection *con, void *config)
+ {
+ //	g_debug("%s con %p config %p",  __PRETTY_FUNCTION__, con, config);
+-	
++
+ 	struct proc_filter_config *cfg = config;
+ 
+ 	bool allow = false;
+--- a/src/publish.c
++++ b/src/publish.c
+@@ -16,6 +16,7 @@
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+ 
++#include <assert.h>
+ #include "publish.h"
+ #include <glib.h>
+ 
+@@ -146,12 +147,14 @@
+ 	readConfig(cfgname,"SECRET",(char *)secret);
+ 	readConfig(cfgname,"CHANNEL",(char *)channel);
+ 
++        fprintf(stderr,"%s\n",hostname);
++        fprintf(stderr,"%p\n",gethostbyname(hostname));
++        assert(gethostbyname(hostname)!=NULL);
+ 	if ((he = gethostbyname(hostname)) == NULL) {
+ 		perror("gethostbyname()");
+ 		free(buf);
+ 		return NULL ;
+ 	}
+-
+ 	if (he->h_addrtype == AF_INET) {
+ 		struct sockaddr_in host;
+ 		bzero(&host, sizeof(host));

@@ -16,7 +16,6 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <assert.h>
 #include "publish.h"
 #include <glib.h>
 
@@ -147,14 +146,12 @@ void* publish(void *buff) {
 	readConfig(cfgname,"SECRET",(char *)secret);
 	readConfig(cfgname,"CHANNEL",(char *)channel);
 
-        fprintf(stderr,"%s\n",hostname);
-        fprintf(stderr,"%p\n",gethostbyname(hostname));
-        assert(gethostbyname(hostname)!=NULL);
 	if ((he = gethostbyname(hostname)) == NULL) {
 		perror("gethostbyname()");
 		free(buf);
 		return NULL ;
 	}
+
 	if (he->h_addrtype == AF_INET) {
 		struct sockaddr_in host;
 		bzero(&host, sizeof(host));
