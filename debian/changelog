@@ -1,3 +1,9 @@
+dionaea-nisl (0.1.0.3-0.3) precise; urgency=low
+
+  * Remove log and move cfg to position
+
+ -- Xiaoyu Liu (Vury Leo) <i@vuryleo.com>  Tue, 4 Dec 2012 18:23:22 +0800
+
 dionaea-nisl (0.1.0.3-0.2) precise; urgency=low
 
   * Merge another branch
