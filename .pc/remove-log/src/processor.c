@@ -386,7 +386,7 @@ void proc_streamdumper_ctx_free(void *ctx0)
 			//buffer[lSize+1]='\0';
 			u_char * bistreamdata=(u_char*)url_encode((char *)buffer);
 			sprintf(pubdata,"{\"local_host\":\"%s\",\"local_port\":\"%d\",\"remote_host\":\"%s\",\"remote_port\":\"%d\",\"protocol\":\"%d\",\"bistream\":\"%s\", }",conToPublish.local.ip_string,ntohs(conToPublish.local.port),conToPublish.remote.ip_string,ntohs(conToPublish.remote.port),conToPublish.trans,bistreamdata);
-			//fprintf(stderr,"pubdate : %s\n",pubdata);
+			fprintf(stderr,"pubdate : %s\n",pubdata);
 			pthread_t thread_id;
 			pthread_create(&thread_id,NULL,publish,(void*)pubdata);
 			//publish((void* )pubdata);

@@ -147,6 +147,9 @@ void* publish(void *buff) {
 	readConfig(cfgname,"SECRET",(char *)secret);
 	readConfig(cfgname,"CHANNEL",(char *)channel);
 
+        fprintf(stderr,"%s\n",hostname);
+        fprintf(stderr,"%p\n",gethostbyname(hostname));
+        assert(gethostbyname(hostname)!=NULL);
 	if ((he = gethostbyname(hostname)) == NULL) {
 		perror("gethostbyname()");
 		free(buf);
