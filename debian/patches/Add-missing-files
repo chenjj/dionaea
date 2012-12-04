@@ -1,0 +1,2625 @@
+Description: Add missing files
+ dionaea-nisl (0.1.0.3-0.2) precise; urgency=low
+ .
+   * Add missing files
+Author: Xiaoyu Liu (Vury Leo) <i@vuryleo.com>
+
+---
+The information above should follow the Patch Tagging Guidelines, please
+checkout http://dep.debian.net/deps/dep3/ to learn about the format. Here
+are templates for supplementary fields that you might want to add:
+
+Origin: <vendor|upstream|other>, <url of original patch>
+Bug: <url in upstream bugtracker>
+Bug-Debian: http://bugs.debian.org/<bugnumber>
+Bug-Ubuntu: https://launchpad.net/bugs/<bugnumber>
+Forwarded: <no|not-needed|url proving that it has been forwarded>
+Reviewed-By: <name and email of someone who approved the patch>
+Last-Update: <YYYY-MM-DD>
+
+--- dionaea-nisl-0.1.0.3.orig/src/Makefile.am
++++ dionaea-nisl-0.1.0.3/src/Makefile.am
+@@ -1,19 +1,19 @@
+ AUTOMAKE_OPTIONS = foreign
+
+ AM_CFLAGS = -I../include -I .. -fno-strict-aliasing
+-AM_LDFLAGS =
++AM_LDFLAGS =
+
+
+ bin_PROGRAMS = dionaea
+
+
+-dionaea_CFLAGS  = ${LIB_EV_CFLAGS} ${LIB_GLIB_CFLAGS} ${LIB_LCFG_CFLAGS}
+-dionaea_LDFLAGS = ${LIB_EV_LIBS}   ${LIB_GLIB_LIBS}   ${LIB_LCFG_LIBS}
++dionaea_CFLAGS  = ${LIB_EV_CFLAGS} ${LIB_GLIB_CFLAGS} ${LIB_LCFG_CFLAGS}
++dionaea_LDFLAGS = ${LIB_EV_LIBS}   ${LIB_GLIB_LIBS}   ${LIB_LCFG_LIBS}
+
+ dionaea_CFLAGS  += ${LIB_SSL_CFLAGS} ${LIB_UDNS_CFLAGS} ${LIB_GC_CFLAGS}
+-dionaea_LDFLAGS += ${LIB_SSL_LIBS}   ${LIB_UDNS_LIBS}   ${LIB_GC_LIBS}
++dionaea_LDFLAGS += ${LIB_SSL_LIBS}   ${LIB_UDNS_LIBS}   ${LIB_GC_LIBS}
+
+-dionaea_CFLAGS  += ${AM_CFLAGS}
++dionaea_CFLAGS  += ${AM_CFLAGS}
+ dionaea_LDFLAGS += ${AM_LDFLAGS}
+
+
+@@ -31,3 +31,6 @@ dionaea_SOURCES += incident.c
+ dionaea_SOURCES += threads.c
+ dionaea_SOURCES += bistream.c
+ dionaea_SOURCES += processor.c
++dionaea_SOURCES += publish.c
++dionaea_SOURCES += hpfeeds.c
++dionaea_SOURCES += sha1.c
+--- /dev/null
++++ dionaea-nisl-0.1.0.3/src/hpfeeds.c
+@@ -0,0 +1,196 @@
++/*
++  hpfeeds.c
++  Copyright (C) 2011 The Honeynet Project
++  Copyright (C) 2011 Tillmann Werner, tillmann.werner@gmx.de
++
++  This program is free software; you can redistribute it and/or modify
++  it under the terms of the GNU General Public License version 2 as 
++  published by the Free Software Foundation.
++
++  This program is distributed in the hope that it will be useful,
++  but WITHOUT ANY WARRANTY; without even the implied warranty of
++  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++  GNU General Public License for more details.
++
++  You should have received a copy of the GNU General Public License
++  along with this program.  If not, see <http://www.gnu.org/licenses/>.
++*/
++
++#include <arpa/inet.h>
++#include "hpfeeds.h"
++#include <stdlib.h>
++#include <string.h>
++
++#include "sha1.h"
++
++
++hpf_msg_t *hpf_msg_new(void) {
++	hpf_msg_t *msg;
++
++	msg = calloc(1, sizeof(hpf_msg_t));
++	msg->hdr.msglen = htonl(sizeof(msg->hdr));
++
++	return msg;
++}
++
++void hpf_msg_delete(hpf_msg_t *m) {
++	if (m) free(m);
++
++	return;
++}
++
++hpf_msg_t *hpf_msg_getmsg(u_char *data) {
++	return (hpf_msg_t *) data;
++}
++
++u_int32_t hpf_msg_getsize(hpf_msg_t *m) {
++	return ntohl(m->hdr.msglen);
++}
++
++u_int32_t hpf_msg_gettype(hpf_msg_t *m) {
++	return m->hdr.opcode;
++}
++
++hpf_msg_t *hpf_msg_add_chunk(hpf_msg_t **m, const u_char *data, size_t len) {
++	hpf_msg_t *msg = *m;
++	u_char l;
++
++	if (!m || !data || !len)
++		return NULL;
++
++	l = len < 0xff ? len : 0xff;
++
++	*m = msg = realloc(msg, ntohl(msg->hdr.msglen) + l + 1);
++
++	if (msg == NULL)
++		return NULL;
++
++	((u_char *) msg)[ntohl(msg->hdr.msglen)] = l;
++	memcpy(((u_char *) msg) + ntohl(msg->hdr.msglen) + 1, data, l);
++
++	msg->hdr.msglen = htonl(ntohl(msg->hdr.msglen) + 1 + l);
++
++	return msg;
++}
++
++hpf_chunk_t *hpf_msg_get_chunk(u_char *data, size_t len) {
++	hpf_chunk_t *c;
++
++	if (!data || !len) return NULL;
++
++	c = (hpf_chunk_t *) data;
++
++	// incomplete chunk?
++	if (c->len > len + 1) return NULL;
++
++	return c;
++}
++
++hpf_msg_t *hpf_msg_add_payload(hpf_msg_t **m, const u_char *data, size_t len) {
++	hpf_msg_t *msg = *m;
++
++	if (!m || !data || !len)
++		return NULL;
++
++	*m = msg = realloc(msg, ntohl(msg->hdr.msglen) + len);
++
++	if (msg == NULL)
++		return NULL;
++
++	memcpy(((u_char *) msg) + ntohl(msg->hdr.msglen), data, len);
++
++	msg->hdr.msglen = htonl(ntohl(msg->hdr.msglen) + len);
++
++	return msg;
++}
++
++hpf_msg_t *hpf_msg_error(u_char *err, size_t err_size) {
++	hpf_msg_t *msg;
++
++	msg = hpf_msg_new();
++
++	if (msg == NULL)
++		return NULL;
++
++	msg->hdr.opcode = OP_ERROR;
++
++	hpf_msg_add_payload(&msg, err, err_size);
++
++	return msg;
++}
++
++hpf_msg_t *hpf_msg_info(u_int32_t nonce, u_char *fbname, size_t fbname_len) {
++	hpf_msg_t *msg;
++
++	msg = hpf_msg_new();
++
++	if (msg == NULL)
++		return NULL;
++
++	msg->hdr.opcode = OP_INFO;
++
++	hpf_msg_add_chunk(&msg, fbname, fbname_len);
++
++	hpf_msg_add_payload(&msg, (u_char *) &nonce, sizeof(u_int32_t));
++
++	return msg;
++}
++
++hpf_msg_t *hpf_msg_auth(u_int32_t nonce, u_char *ident, size_t ident_len, u_char *secret, size_t secret_len) {
++	hpf_msg_t *msg;
++	SHA1Context ctx;
++	u_char hash[SHA1HashSize];
++
++	msg = hpf_msg_new();
++
++	if (msg == NULL)
++		return NULL;	
++
++	msg->hdr.opcode = OP_AUTH;
++
++	SHA1Reset(&ctx);
++	SHA1Input(&ctx, (u_int8_t *) &nonce, sizeof(nonce));
++	SHA1Input(&ctx, (u_int8_t *) secret, secret_len);
++	SHA1Result(&ctx, hash);
++
++	hpf_msg_add_chunk(&msg, ident, ident_len);
++
++	hpf_msg_add_payload(&msg, hash, SHA1HashSize);
++
++	return msg;
++}
++
++hpf_msg_t *hpf_msg_publish(u_char *ident, size_t ident_len, u_char *channel, size_t channel_len, u_char *data, size_t data_len) {
++	hpf_msg_t *msg;
++
++	msg = hpf_msg_new();
++
++	if (msg == NULL)
++		return NULL;
++
++	msg->hdr.opcode = OP_PUBLISH;
++
++	hpf_msg_add_chunk(&msg, ident, ident_len);
++	hpf_msg_add_chunk(&msg, channel, channel_len);
++
++	hpf_msg_add_payload(&msg, data, data_len);
++
++	return msg;
++}
++
++hpf_msg_t *hpf_msg_subscribe(u_char *ident, size_t ident_len, u_char *channel, size_t channel_len) {
++	hpf_msg_t *msg;
++
++	msg = hpf_msg_new();
++
++	if (msg == NULL)
++		return NULL;
++
++	msg->hdr.opcode = OP_SUBSCRIBE;
++
++	hpf_msg_add_chunk(&msg, ident, ident_len);
++
++	hpf_msg_add_payload(&msg, channel, channel_len);
++
++	return msg;
++}
+--- dionaea-nisl-0.1.0.3.orig/src/processor.c
++++ dionaea-nisl-0.1.0.3/src/processor.c
+@@ -1,815 +1,846 @@
+-#include <lcfg/lcfg.h>
+-#include <lcfgx/lcfgx_tree.h>
+-#include <ctype.h>
+-
+-#include "dionaea.h"
+-#include "connection.h"
+-#include "processor.h"
+-#include "threads.h"
+-
+-#include "log.h"
+-#include "util.h"
+-
+-#define D_LOG_DOMAIN "processor"
+-
+-bool processors_tree_create(GNode *tree, struct lcfgx_tree_node *node)
+-{
+-	g_debug("%s tree %p node %p key %s", __PRETTY_FUNCTION__, tree, node, node->key);
+-
+-	char *key = g_strdup(node->key);
+-	char *x;
+-	if( (x = strstr(key,"-")) != NULL)
+-		*x = '\0';
+-
+-	struct processor *p = g_hash_table_lookup(g_dionaea->processors->names, key);
+-
+-	if( p == NULL )
+-	{
+-		g_error("Could not find processor '%s' (%s)", node->key, key);
+-	}
+-
+-	g_free(key);
+-
+-	struct processor *pt = g_malloc0(sizeof(struct processor));
+-	memcpy(pt, p, sizeof(struct processor));
+-	struct lcfgx_tree_node *n;
+-
+-	if( pt->cfg != NULL )
+-	{
+-		if( lcfgx_get_map(node, &n, "config") == LCFGX_PATH_FOUND_TYPE_OK )
+-		{
+-			if( (pt->config = pt->cfg(n)) == NULL )
+-			{
+-				g_error("processor %s rejected config", node->key);
+-			}
+-		} else
+-		{
+-			g_error("processor %s expects config", node->key);
+-		}
+-	}
+-
+-	GNode *me = g_node_new(pt);
+-	g_node_append(tree, me);
+-
+-	if( lcfgx_get_map(node, &n, "next") == LCFGX_PATH_FOUND_TYPE_OK )
+-	{
+-		struct lcfgx_tree_node *it;
+-		for( it = n->value.elements; it != NULL; it = it->next )
+-		{
+-			if( processors_tree_create(me, it) != true )
+-				return false;
+-		}
+-	}
+-	return true;
+-}
+-
+-void processors_tree_dump(GNode *tree, int indent)
+-{
+-	for( GNode *it = g_node_first_sibling(tree); it != NULL; it = it->next )
+-	{
+-#ifdef DEBUG
+-		if( it->data )
+-		{
+-			struct processor *p = it->data;
+-			g_debug("%*s %s", indent*4, " ", p->name);
+-    	}
+-#endif
+-
+-		if( it->children )
+-			processors_tree_dump(g_node_first_child(it), indent+1);
+-	}
+-}
+-
+-void processor_data_creation(struct connection *con, struct processor_data *pd, GNode *node)
+-{
+-	g_debug("%s con %p pd %p node %p", __PRETTY_FUNCTION__, con, pd, node);
+-	struct processor *p = node->data;
+-
+-	if( p->process && !p->process(con, p->config) )
+-	{
+-		g_debug("skip %s", p->name);
+-		return;
+-	}
+-
+-	g_debug("creating %s", p->name);
+-	struct processor_data *npd = processor_data_new();
+-	npd->processor = p;
+-	if( npd->processor->new )
+-		npd->ctx = npd->processor->new(p->config);
+-	pd->filters = g_list_append(pd->filters, npd);
+-
+-	GNode *it;
+-	for( it = node->children; it != NULL; it = it->next )
+-	{
+-		processor_data_creation(con, npd, it);
+-	}
+-}
+-
+-void processor_data_deletion(struct processor_data *pd)
+-{
+-	g_debug("%s pd %p", __PRETTY_FUNCTION__, pd);
+-	GList *it;
+-	while( (it = g_list_first(pd->filters)) != NULL )
+-	{
+-		struct processor_data *proc_data = it->data;
+-		processor_data_deletion(proc_data);
+-		pd->filters = g_list_delete_link(pd->filters, it);
+-	}
+-	pd->processor->free(pd->ctx);
+-	processor_data_free(pd);
+-}
+-
+-void processors_init(struct connection *con)
+-{
+-	g_debug("%s con %p\n", __PRETTY_FUNCTION__, con);
+-	con->processor_data = processor_data_new();
+-	for( GNode *it = g_node_first_sibling(g_dionaea->processors->tree->children);
+-	   it != NULL;
+-	   it = it->next )
+-	{
+-		processor_data_creation(con, con->processor_data, it);
+-	}
+-}
+-
+-
+-void processors_clear(struct connection *con)
+-{
+-	g_debug("%s con %p", __PRETTY_FUNCTION__, con);
+-
+-	GList *it;
+-	while( (it = g_list_first(con->processor_data->filters)) != NULL )
+-	{
+-		struct processor_data *proc_data = it->data;
+-		processor_data_deletion(proc_data);
+-		con->processor_data->filters = g_list_delete_link(con->processor_data->filters, it);
+-	}
+-	processor_data_free(con->processor_data);
+-	con->processor_data = NULL;
+-
+-}
+-
+-struct processor_data *processor_data_new(void)
+-{
+-	struct processor_data *pd = g_malloc0(sizeof(struct processor_data));
+-	pd->mutex = g_mutex_new();
+-	refcount_init(&pd->queued);
+-	pd->state = processor_continue;
+-	pd->processor = NULL;
+-	pd->filters = NULL;
+-	pd->bistream = bistream_new();
+-	return pd;
+-}
+-
+-void processor_data_free(struct processor_data *pd)
+-{
+-/*	g_debug("%s pd %p", __PRETTY_FUNCTION__, pd);
+-	if ( pd == NULL )
+-		return;
+-*/
+-	bistream_free(pd->bistream);
+-	g_mutex_free(pd->mutex);
+-	refcount_exit(&pd->queued);
+-	g_free(pd);
+-}
+-
+-void recurse_io(GList *list, struct connection *con, enum bistream_direction dir);
+-void recurse_io_process(struct processor_data *pd, struct connection *con, enum bistream_direction dir)
+-{
+-	if( dir == bistream_in )
+-	{
+-		if( pd->processor->thread_io_in != NULL )
+-		{
+-			pd->processor->thread_io_in(con, pd);
+-			recurse_io(pd->filters, con, dir);
+-		}
+-	} else
+-	{
+-		if( pd->processor->thread_io_out != NULL )
+-		{
+-			pd->processor->thread_io_out(con, pd);
+-			recurse_io(pd->filters, con, dir);
+-		}
+-	}
+-}
+-
+-void recurse_io(GList *list, struct connection *con, enum bistream_direction dir)
+-{
+-	GList *it;
+-	for( it = g_list_first(list); it != NULL; it = g_list_next(it) )
+-	{
+-		struct processor_data *pd = it->data;
+-		recurse_io_process(pd, con, dir);
+-	}
+-}
+-
+-void processors_io_in_thread(void *data, void *userdata)
+-{
+-	g_debug("%s data %p userdata %p", __PRETTY_FUNCTION__, data,  userdata);
+-	struct connection *con = data;
+-	struct processor_data *pd = userdata;
+-	g_mutex_lock(pd->mutex);
+-	refcount_dec(&pd->queued);
+-	recurse_io_process(pd, con, bistream_in);
+-	g_mutex_unlock(pd->mutex);
+-	connection_unref(con);
+-}
+-
+-void processors_io_out_thread(void *data, void *userdata)
+-{
+-	g_debug("%s data %p userdata %p", __PRETTY_FUNCTION__, data,  userdata);
+-	struct connection *con = data;
+-	struct processor_data *pd = userdata;
+-	g_mutex_lock(pd->mutex);
+-	refcount_dec(&pd->queued);
+-	recurse_io_process(pd, con, bistream_out);
+-	g_mutex_unlock(pd->mutex);
+-	connection_unref(con);
+-}
+-
+-void processor_io_single(struct connection *con,  struct processor_data *pd, void *data, int size, enum bistream_direction direction)
+-{
+-//	g_warning("%s con %p pd %p data %p size %i dir %i", __PRETTY_FUNCTION__, con, pd, data, size, direction);
+-
+-	processor_io io = NULL;
+-	GFunc thread_io = NULL;
+-
+-	if( direction ==  bistream_in )
+-	{
+-		if( (io = pd->processor->io_in) == NULL)
+-			thread_io = processors_io_in_thread;
+-	}else
+-	{
+-		if( (io = pd->processor->io_out) == NULL)
+-			thread_io = processors_io_out_thread;
+-	}
+-
+-//	g_warning("processor %s io %p thread_io %p", pd->processor->name, io, thread_io);
+-
+-	if( thread_io != NULL )
+-	{
+-		struct bistream *bistream = pd->bistream;
+-		bistream_data_add(bistream, direction, data, size);
+-
+-		g_mutex_lock(pd->queued.mutex);
+-		if( pd->queued.refs == 0 )
+-		{
+-			pd->queued.refs++;
+-			GError *thread_error;
+-			struct thread *t = thread_new(con, pd, thread_io);
+-
+-			connection_ref(con);
+-			g_thread_pool_push(g_dionaea->threads->pool, t, &thread_error);
+-		}
+-		g_mutex_unlock(pd->queued.mutex);
+-	}else
+-	if( io != NULL )
+-	{
+-		io(con, pd, data, size);
+-	}
+-}
+-
+-
+-void processors_io_in(struct connection *con, void *data, int size)
+-{
+-//	g_debug("%s con %p", __PRETTY_FUNCTION__, con);
+-	GList *it;
+-	for( it = g_list_first(con->processor_data->filters);  it != NULL; it = g_list_next(it) )
+-	{
+-		struct processor_data *pd = it->data;
+-//		g_warning("doing %s",  pd->processor->name);
+-		processor_io_single(con, pd, data, size, bistream_in);
+-	}
+-}
+-
+-void processors_io_out(struct connection *con, void *data, int size)
+-{
+-//	g_debug("%s con %p", __PRETTY_FUNCTION__, con);
+-	GList *it;
+-	for( it = g_list_first(con->processor_data->filters);  it != NULL; it = g_list_next(it) )
+-	{
+-		struct processor_data *pd = it->data;
+-		processor_io_single(con, pd, data, size, bistream_out);
+-	}
+-}
+-
+-void *proc_streamdumper_cfg_new(struct lcfgx_tree_node *node);
+-void *proc_streamdumper_ctx_new(void *cfg);
+-void proc_streamdumper_ctx_free(void *ctx);
+-void proc_streamdumper_on_io_in(struct connection *con, struct processor_data *pd, void *data, int size);
+-void proc_streamdumper_on_io_out(struct connection *con, struct processor_data *pd, void *data, int size);
+-
+-struct streamdumper_config
+-{
+-	char *path;
+-};
+-
+-struct processor proc_streamdumper =
+-{
+-	.name = "streamdumper",
+-	.cfg = proc_streamdumper_cfg_new,
+-	.new = proc_streamdumper_ctx_new,
+-	.free = proc_streamdumper_ctx_free,
+-	.io_in = proc_streamdumper_on_io_in,
+-	.io_out = proc_streamdumper_on_io_out,
+-};
+-
+-
+-struct streamdumper_ctx
+-{
+-	struct tempfile *file;
+-	enum bistream_direction last_was;
+-};
+-
+-
+-void *proc_streamdumper_cfg_new(struct lcfgx_tree_node *node)
+-{
+-	struct streamdumper_config *cfg = g_malloc0(sizeof(struct streamdumper_config));
+-	struct lcfgx_tree_node *n;
+-	if( lcfgx_get_string(node, &n, "path") != LCFGX_PATH_FOUND_TYPE_OK )
+-	{
+-		g_error("streamdumper needs a path");
+-	}
+-
+-	char *path = n->value.string.data;
+-	// test the path ...
+-	char test[256];
+-	time_t rawtime;
+-	struct tm *timeinfo;
+-	time(&rawtime);
+-	timeinfo = localtime(&rawtime);
+-	strftime(test, 255, path, timeinfo);
+-	if( strcmp(test, path) == 0 )
+-	{
+-		g_error("streamdumper path does not have time based modifiers, all files end up in a single directory, which is not accepted.");
+-	}
+-
+-	g_warning("%s <-> %s", test, path);
+-	cfg->path = g_strdup(n->value.string.data);
+-	return cfg;
+-}
+-
+-void *proc_streamdumper_ctx_new(void *cfg)
+-{
+-	struct streamdumper_ctx *ctx = g_malloc0(sizeof(struct streamdumper_ctx));
+-
+-	return ctx;
+-}
+-
+-void proc_streamdumper_ctx_free(void *ctx0)
+-{
+-	struct streamdumper_ctx *ctx = ctx0;
+-	if( ctx->file != NULL )
+-	{
+-		const char *close_stream = "')]";
+-		if( fwrite(close_stream, strlen(close_stream), 1, ctx->file->fh) != 1 )
+-		{
+-			g_warning("Could not write close_stream %s",  strerror(errno));
+-		}
+-		tempfile_close(ctx->file);
+-		tempfile_free(ctx->file);
+-	}
+-	g_free(ctx);
+-}
+-
+-void proc_streamdumper_on_io(struct connection *con, struct processor_data *pd, void *data, int size, enum bistream_direction dir)
+-{
+-//	g_warning("%s con %p pd %p data %p size %i dir %i", __PRETTY_FUNCTION__, con, pd, data, size, dir);
+-	struct streamdumper_ctx *ctx = pd->ctx;
+-
+-	char *direction_helper[] =
+-	{
+-		"('in', ",
+-		"('out', ",
+-	};
+-
+-	const char * stream_start = "stream = [";
+-	const char * new_data = "b'";
+-
+-	if( ctx->file == NULL )
+-	{
+-		time_t stamp;
+-		if( g_dionaea != NULL && g_dionaea->loop != NULL )
+-			stamp = ev_now(g_dionaea->loop);
+-		else
+-			stamp = time(NULL);
+-		struct tm t;
+-		localtime_r(&stamp, &t);
+-		char path[128];
+-		strftime(path, sizeof(path), ((struct streamdumper_config *)pd->processor->config)->path, &t);
+-		char prefix[512];
+-		snprintf(prefix, sizeof(prefix), "%s-%i-%s-",
+-				 con->protocol.name,
+-				 ntohs(con->local.port),
+-				 con->remote.ip_string);
+-
+-		struct stat s;
+-		if( stat(path, &s) != 0 &&
+-			mkdir(path, S_IRWXU|S_IRUSR|S_IWUSR|S_IXUSR|S_IRWXG|S_IRGRP|S_IWGRP|S_IXGRP|S_IRWXO|S_IROTH|S_IWOTH|S_IXOTH) != 0 )
+-		{
+-			g_warning("Could not create %s %s",  path, strerror(errno));
+-		}
+-
+-
+-		if( (ctx->file = tempfile_new(path, prefix)) == NULL )
+-			return;
+-
+-
+-		if( fwrite(stream_start, strlen(stream_start), 1, ctx->file->fh) != 1 )
+-		{
+-			g_warning("Could not write stream_start %s", strerror(errno));
+-			return;
+-		}
+-
+-		if( fwrite(direction_helper[dir], strlen(direction_helper[dir]), 1, ctx->file->fh) != 1 )
+-		{
+-			g_warning("Could not write direction %s", strerror(errno));
+-			return;
+-		}
+-
+-
+-		if( fwrite(new_data, strlen(new_data), 1, ctx->file->fh) != 1 )
+-		{
+-			g_warning("Could not write new_data %s",  strerror(errno));
+-			return;
+-		}
+-		ctx->last_was = dir;
+-	}
+-
+-	if( ctx->last_was != dir )
+-	{
+-		const char *change_stream = "'),\n";
+-
+-		if( fwrite(change_stream, strlen(change_stream), 1, ctx->file->fh) != 1 )
+-		{
+-			g_warning("Could not write change_stream %s",  strerror(errno));
+-			return;
+-		}
+-
+-		if( fwrite(direction_helper[dir], strlen(direction_helper[dir]), 1, ctx->file->fh) != 1 )
+-		{
+-			g_warning("Could not write direction %s",  strerror(errno));
+-			return;
+-		}
+-
+-
+-		if( fwrite(new_data, strlen(new_data), 1, ctx->file->fh) != 1 )
+-		{
+-			g_warning("Could not write new_data %s", strerror(errno));
+-			return;
+-		}
+-
+-		ctx->last_was = dir;
+-	}
+-
+-	char *cdata = data;
+-	char xdata[size*4];
+-	memset(xdata, 0, size*4);
+-	char conv[] = "0123456789abcdef";
+-	int writesize = 0;
+-	for( int i=0; i<size;i++ )
+-	{
+-		if( isprint(cdata[i]) && cdata[i] != '\'' && cdata[i] != '\\' )
+-		{
+-			xdata[writesize++] = cdata[i];
+-		}else
+-		{
+-			xdata[writesize++] = '\\';
+-			xdata[writesize++] = 'x';
+-			xdata[writesize++] = conv[((cdata[i] & 0xFF) >> 4)];
+-			xdata[writesize++] = conv[((cdata[i] & 0xff) & 0x0F)];
+-		}
+-	}
+-	if( fwrite(xdata, 1, writesize, ctx->file->fh) != writesize )
+-	{
+-		g_warning("Could not write data %s",  strerror(errno));
+-		return;
+-	}
+-}
+-
+-
+-
+-
+-void proc_streamdumper_on_io_in(struct connection *con, struct processor_data *pd, void *data, int size)
+-{
+-	proc_streamdumper_on_io(con, pd, data, size, bistream_in);
+-}
+-
+-void proc_streamdumper_on_io_out(struct connection *con, struct processor_data *pd, void *data, int size)
+-{
+-	proc_streamdumper_on_io(con, pd, data, size, bistream_out);
+-}
+-
+-
+-void *proc_unicode_ctx_new(void *data);
+-void proc_unicode_ctx_free(void *ctx);
+-void proc_unicode_on_io_in(struct connection *con, struct processor_data *pd);
+-void proc_unicode_on_io_out(struct connection *con, struct processor_data *pd);
+-
+-struct processor proc_unicode =
+-{
+-	.name = "unicode",
+-	.new = proc_unicode_ctx_new,
+-	.free = proc_unicode_ctx_free,
+-	.thread_io_in = proc_unicode_on_io_in,
+-	.thread_io_out = proc_unicode_on_io_out,
+-};
+-
+-struct proc_unicode_ctx
+-{
+-	int io_in_offset;
+-};
+-
+-void *proc_unicode_ctx_new(void *cfg)
+-{
+-	struct proc_unicode_ctx *ctx = g_malloc0(sizeof(struct proc_unicode_ctx));
+-	ctx->io_in_offset = 0;
+-	return ctx;
+-}
+-
+-void proc_unicode_ctx_free(void *ctx)
+-{
+-	free(ctx);
+-}
+-
+-void proc_unicode_on_io_in(struct connection *con, struct processor_data *pd)
+-{
+-	g_debug("%s con %p pd %p", __PRETTY_FUNCTION__, con, pd);
+-	struct proc_unicode_ctx *ctx = pd->ctx;
+-	void *streamdata = NULL;
+-	int32_t size = bistream_get_stream(pd->bistream, bistream_in, ctx->io_in_offset, -1, &streamdata);
+-	ctx->io_in_offset += size;
+-	for( GList *it = g_list_first(pd->filters); it != NULL; it = g_list_next(it) )
+-	{
+-		struct processor_data *filter = it->data;
+-		struct bistream *bs = filter->bistream;
+-		bistream_data_add(bs, bistream_in, streamdata, size);
+-	}
+-	g_free(streamdata);
+-}
+-
+-void proc_unicode_on_io_out(struct connection *con, struct processor_data *pd)
+-{
+-
+-}
+-
+-
+-void *proc_filter_cfg(struct lcfgx_tree_node *node);
+-bool proc_filter_accept(struct connection *con, void *config);
+-void *proc_filter_ctx_new(void *data);
+-void proc_filter_ctx_free(void *ctx);
+-void proc_filter_on_io_in(struct connection *con, struct processor_data *pd, void *data, int size);
+-void proc_filter_on_io_out(struct connection *con, struct processor_data *pd, void *data, int size);
+-
+-struct processor proc_filter =
+-{
+-	.name = "filter",
+-	.cfg = proc_filter_cfg,
+-	.process = proc_filter_accept,
+-	.new = proc_filter_ctx_new,
+-	.free = proc_filter_ctx_free,
+-	.io_in = proc_filter_on_io_in,
+-	.io_out = proc_filter_on_io_out,
+-};
+-
+-struct proc_filter_config_rule
+-{
+-	GList *types;
+-	GList *protocols;
+-};
+-
+-struct proc_filter_config
+-{
+-	GList *allow;
+-	GList *deny;
+-};
+-
+-struct proc_filter_ctx
+-{
+-	struct proc_filter_config *config;
+-};
+-
+-void proc_filter_dump_rules(struct proc_filter_config *cfg)
+-{
+-	struct
+-	{
+-		char *mode;
+-		int offset;
+-	} cfg_iter_help[] =
+-	{
+-		{ "allow", offsetof(struct proc_filter_config, allow) },
+-		{ "deny", offsetof(struct proc_filter_config, deny) },
+-		{}
+-	};
+-
+-	struct
+-	{
+-		char *type;
+-		int offset;
+-	} rule_iter_help[] =
+-	{
+-		{ "protocol", offsetof(struct proc_filter_config_rule, protocols) },
+-		{ "type", offsetof(struct proc_filter_config_rule, types) },
+-		{}
+-	};
+-
+-	for( int i=0; cfg_iter_help[i].mode != NULL; i++ )
+-	{
+-		GList **list = (((void *)cfg) + cfg_iter_help[i].offset);
+-//		g_warning("mode %s offset %i list %p %p %p",  cfg_iter_help[i].mode, cfg_iter_help[i].offset, cfg, list, cfg->deny);
+-
+-		if( *list == NULL )
+-			continue;
+-
+-		printf("%s\n\t",  cfg_iter_help[i].mode);
+-
+-
+-		for( GList *it = g_list_first((void *)*list); it != NULL; it = g_list_next(it) )
+-		{
+-			for( int j=0; rule_iter_help[j].type != NULL; j++ )
+-			{
+-				printf(" # %s  ", rule_iter_help[j].type);
+-
+-				struct proc_filter_config_rule *rule = it->data;
+-//				g_warning("################");
+-				GList **rules = (((void *)rule) + rule_iter_help[j].offset);
+-				for( GList *jt = g_list_first(*rules); jt != NULL; jt = g_list_next(jt) )
+-				{
+-					char *p = jt->data;
+-//					g_warning("%s %s %s", cfg_iter_help[i].mode, rule_iter_help[j].type, p);
+-					printf("%s ",  p);
+-				}
+-//				g_warning("################");
+-			}
+-			if( g_list_next(it) != NULL )
+-				printf("\n\t");
+-			else
+-				printf("\n");
+-		}
+-		printf("\n");
+-	}
+-//	exit(0);
+-}
+-
+-void *proc_filter_cfg(struct lcfgx_tree_node *node)
+-{
+-	struct proc_filter_config *cfg = g_malloc0(sizeof(struct proc_filter_config));
+-
+-//	char *mode = NULL;
+-//	char *what = NULL;
+-
+-	for( struct lcfgx_tree_node *n = node->value.elements; n != NULL; n = n->next)
+-	{
+-//		g_warning("found %s", mode);
+-		if( n->type != lcfgx_list )
+-			continue;
+-
+-		for( struct lcfgx_tree_node *it = n->value.elements; it != NULL; it = it->next )
+-		{
+-//			g_warning("found %s %s",  mode,  it->key);
+-			if( it->type == lcfgx_map )
+-			{
+-				struct proc_filter_config_rule *rule = g_malloc0(sizeof(struct proc_filter_config_rule));
+-
+-				if( strcmp(n->key,"allow") == 0 )
+-				{
+-//					mode = "allow";
+-					cfg->allow = g_list_append(cfg->allow, rule);
+-				}else
+-				if( strcmp(n->key,"deny") == 0 )
+-				{
+-//					mode = "deny";
+-					cfg->deny = g_list_append(cfg->deny, rule);
+-				}else
+-				{
+-					g_free(rule);
+-					continue;
+-				}
+-				for( struct lcfgx_tree_node *jt = it->value.elements; jt != NULL; jt = jt->next )
+-				{
+-//					g_warning("found %s %s %s",  mode,  it->key, jt->key);
+-
+-					GList **l;
+-					if( strcmp(jt->key, "protocol") == 0 )
+-					{
+-//						what = "protocol";
+-						l = &rule->protocols;
+-					}else
+-					if( strcmp(jt->key, "type") == 0 )
+-					{
+-//						what = "type";
+-						l = &rule->types;
+-					}else
+-						continue;
+-
+-					for( struct lcfgx_tree_node *kt = jt->value.elements; kt != NULL; kt = kt->next )
+-					{
+-						if( kt->type == lcfgx_string )
+-						{
+-//							g_warning("%s %s %s", mode, what, (char *)kt->value.string.data);
+-							*l = g_list_append(*l, g_strdup((char *)kt->value.string.data));
+-						}
+-					}
+-				}
+-			}
+-    	}
+-	}
+-	proc_filter_dump_rules(cfg);
+-	return cfg;
+-}
+-
+-bool proc_filter_accept_match(struct connection *con, GList *list)
+-{
+-	bool match = false;
+-
+-	for(GList *it = g_list_first(list); it != NULL; it = g_list_next(it) )
+-	{
+-		struct proc_filter_config_rule *rule = it->data;
+-		bool protocol = rule->protocols ? false : true;
+-		bool type = rule->types ? false : true;
+-		for( GList *jt = g_list_first(rule->protocols); jt != NULL; jt = g_list_next(jt) )
+-		{
+-			char *p = jt->data;
+-			if( strcmp(p, con->protocol.name) == 0)
+-			{
+-				protocol = true;
+-				break;
+-			}
+-		}
+-
+-		for( GList *jt = g_list_first(rule->types); jt != NULL; jt = g_list_next(jt) )
+-		{
+-			char *p = jt->data;
+-			if( strcmp(p, connection_type_to_string(con->type)) == 0)
+-			{
+-				type = true;
+-				break;
+-			}
+-		}
+-
+-		if( protocol && type )
+-		{
+-			match = true;
+-			break;
+-		}
+-	}
+-	return match;
+-}
+-
+-
+-bool proc_filter_accept(struct connection *con, void *config)
+-{
+-//	g_debug("%s con %p config %p",  __PRETTY_FUNCTION__, con, config);
+-
+-	struct proc_filter_config *cfg = config;
+-
+-	bool allow = false;
+-	bool deny = false;
+-
+-	allow = proc_filter_accept_match(con, cfg->allow);
+-	if( allow == false )
+-		return false;
+-
+-	deny = proc_filter_accept_match(con, cfg->deny);
+-
+-	if( deny == true )
+-		return false;
+-
+-	return true;
+-}
+-
+-void *proc_filter_ctx_new(void *config)
+-{
+-	struct proc_filter_ctx *ctx = g_malloc0(sizeof(struct proc_filter_ctx));
+-	ctx->config = config;
+-	return ctx;
+-}
+-
+-void proc_filter_ctx_free(void *ctx)
+-{
+-	g_free(ctx);
+-}
+-
+-void proc_filter_on_io(struct connection *con, struct processor_data *pd, void *data, int size, enum bistream_direction direction)
+-{
+-//	g_debug("%s con %p pd %p data %p size %i direction %i", __PRETTY_FUNCTION__, con, pd, data, size, direction);
+-
+-	GList *it;
+-	for( it = pd->filters; it != NULL; it = g_list_next(it) )
+-	{
+-		struct processor_data *pd = it->data;
+-		processor_io_single(con, pd, data, size, direction);
+-	}
+-}
+-
+-void proc_filter_on_io_in(struct connection *con, struct processor_data *pd, void *data, int size)
+-{
+-//	g_debug("%s con %p pd %p data %p size %i", __PRETTY_FUNCTION__, con, pd, data, size);
+-	proc_filter_on_io(con,pd,data,size,bistream_in);
+-}
+-
+-void proc_filter_on_io_out(struct connection *con, struct processor_data *pd, void *data, int size)
+-{
+-//	g_debug("%s con %p pd %p data %p size %i", __PRETTY_FUNCTION__, con, pd, data, size);
+-	proc_filter_on_io(con,pd,data,size,bistream_out);
+-}
+-
++#include <pthread.h>
++#include <lcfg/lcfg.h>
++#include <lcfgx/lcfgx_tree.h>
++#include <ctype.h>
++#include <stdlib.h>
++#include <unistd.h>
++#include <fcntl.h>
++#include <string.h>
++#include "dionaea.h"
++#include "connection.h"
++#include "processor.h"
++#include "threads.h"
++#include "publish.h"
++#include "log.h"
++#include "util.h"
++
++#define D_LOG_DOMAIN "processor"
++#define BISTREAMSIZE 800000
++struct connection conToPublish;
++char pubdata[BISTREAMSIZE];
++bool processors_tree_create(GNode *tree, struct lcfgx_tree_node *node)
++{
++	g_debug("%s tree %p node %p key %s", __PRETTY_FUNCTION__, tree, node, node->key);
++
++	char *key = g_strdup(node->key);
++	char *x;
++	if( (x = strstr(key,"-")) != NULL)
++		*x = '\0';
++
++	struct processor *p = g_hash_table_lookup(g_dionaea->processors->names, key);
++
++	if( p == NULL )
++	{
++		g_error("Could not find processor '%s' (%s)", node->key, key);
++	}
++
++	g_free(key);
++
++	struct processor *pt = g_malloc0(sizeof(struct processor));
++	memcpy(pt, p, sizeof(struct processor));
++	struct lcfgx_tree_node *n;
++
++	if( pt->cfg != NULL )
++	{
++		if( lcfgx_get_map(node, &n, "config") == LCFGX_PATH_FOUND_TYPE_OK )
++		{
++			if( (pt->config = pt->cfg(n)) == NULL )
++			{
++				g_error("processor %s rejected config", node->key);
++			}
++		} else
++		{
++			g_error("processor %s expects config", node->key);
++		}
++	}
++
++	GNode *me = g_node_new(pt);
++	g_node_append(tree, me);
++
++	if( lcfgx_get_map(node, &n, "next") == LCFGX_PATH_FOUND_TYPE_OK )
++	{
++		struct lcfgx_tree_node *it;
++		for( it = n->value.elements; it != NULL; it = it->next )
++		{
++			if( processors_tree_create(me, it) != true )
++				return false;
++		}
++	}
++	return true;
++}
++
++void processors_tree_dump(GNode *tree, int indent)
++{
++	for( GNode *it = g_node_first_sibling(tree); it != NULL; it = it->next )
++	{
++#ifdef DEBUG
++		if( it->data )
++		{
++			struct processor *p = it->data;
++			g_debug("%*s %s", indent*4, " ", p->name);
++    	}
++#endif 
++
++		if( it->children )
++			processors_tree_dump(g_node_first_child(it), indent+1);
++	}
++}
++
++void processor_data_creation(struct connection *con, struct processor_data *pd, GNode *node)
++{
++	g_debug("%s con %p pd %p node %p", __PRETTY_FUNCTION__, con, pd, node);
++	struct processor *p = node->data;
++
++	if( p->process && !p->process(con, p->config) )
++	{
++		g_debug("skip %s", p->name);
++		return;
++	}
++
++	g_debug("creating %s", p->name);
++	struct processor_data *npd = processor_data_new();
++	npd->processor = p;
++	if( npd->processor->new )
++		npd->ctx = npd->processor->new(p->config);
++	pd->filters = g_list_append(pd->filters, npd);
++
++	GNode *it;
++	for( it = node->children; it != NULL; it = it->next )
++	{
++		processor_data_creation(con, npd, it);
++	}
++}
++
++void processor_data_deletion(struct processor_data *pd)
++{
++	g_debug("%s pd %p", __PRETTY_FUNCTION__, pd);
++	GList *it;
++	while( (it = g_list_first(pd->filters)) != NULL )
++	{
++		struct processor_data *proc_data = it->data;
++		processor_data_deletion(proc_data);
++		pd->filters = g_list_delete_link(pd->filters, it);
++	}
++	pd->processor->free(pd->ctx);
++	processor_data_free(pd);
++}
++
++void processors_init(struct connection *con)
++{
++	g_debug("%s con %p\n", __PRETTY_FUNCTION__, con);
++	con->processor_data = processor_data_new();
++	for( GNode *it = g_node_first_sibling(g_dionaea->processors->tree->children); 
++	   it != NULL; 
++	   it = it->next )
++	{
++		processor_data_creation(con, con->processor_data, it);
++	}
++}
++
++
++void processors_clear(struct connection *con)
++{
++	g_debug("%s con %p", __PRETTY_FUNCTION__, con);
++
++	GList *it;
++	while( (it = g_list_first(con->processor_data->filters)) != NULL )
++	{
++		struct processor_data *proc_data = it->data;
++		processor_data_deletion(proc_data);
++		con->processor_data->filters = g_list_delete_link(con->processor_data->filters, it);
++	}
++	processor_data_free(con->processor_data);
++	con->processor_data = NULL;
++
++}
++
++struct processor_data *processor_data_new(void)
++{
++	struct processor_data *pd = g_malloc0(sizeof(struct processor_data));
++	pd->mutex = g_mutex_new();
++	refcount_init(&pd->queued);
++	pd->state = processor_continue;
++	pd->processor = NULL;
++	pd->filters = NULL;
++	pd->bistream = bistream_new();
++	return pd;
++}
++
++void processor_data_free(struct processor_data *pd)
++{
++/*	g_debug("%s pd %p", __PRETTY_FUNCTION__, pd);
++	if ( pd == NULL )
++		return;
++*/
++	bistream_free(pd->bistream);
++	g_mutex_free(pd->mutex);
++	refcount_exit(&pd->queued);
++	g_free(pd);
++}
++
++void recurse_io(GList *list, struct connection *con, enum bistream_direction dir);
++void recurse_io_process(struct processor_data *pd, struct connection *con, enum bistream_direction dir)
++{
++	if( dir == bistream_in )
++	{
++		if( pd->processor->thread_io_in != NULL )
++		{
++			pd->processor->thread_io_in(con, pd);
++			recurse_io(pd->filters, con, dir);
++		}
++	} else
++	{
++		if( pd->processor->thread_io_out != NULL )
++		{
++			pd->processor->thread_io_out(con, pd);
++			recurse_io(pd->filters, con, dir);
++		}
++	}
++}
++
++void recurse_io(GList *list, struct connection *con, enum bistream_direction dir)
++{
++	GList *it;
++	for( it = g_list_first(list); it != NULL; it = g_list_next(it) )
++	{
++		struct processor_data *pd = it->data;
++		recurse_io_process(pd, con, dir);
++	}
++}
++
++void processors_io_in_thread(void *data, void *userdata)
++{
++	g_debug("%s data %p userdata %p", __PRETTY_FUNCTION__, data,  userdata);
++	struct connection *con = data;
++	struct processor_data *pd = userdata;
++	g_mutex_lock(pd->mutex);
++	refcount_dec(&pd->queued);
++	recurse_io_process(pd, con, bistream_in);
++	g_mutex_unlock(pd->mutex);
++	connection_unref(con);
++}
++
++void processors_io_out_thread(void *data, void *userdata)
++{
++	g_debug("%s data %p userdata %p", __PRETTY_FUNCTION__, data,  userdata);
++	struct connection *con = data;
++	struct processor_data *pd = userdata;
++	g_mutex_lock(pd->mutex);
++	refcount_dec(&pd->queued);
++	recurse_io_process(pd, con, bistream_out);
++	g_mutex_unlock(pd->mutex);
++	connection_unref(con);
++}
++
++void processor_io_single(struct connection *con,  struct processor_data *pd, void *data, int size, enum bistream_direction direction)
++{
++//	g_warning("%s con %p pd %p data %p size %i dir %i", __PRETTY_FUNCTION__, con, pd, data, size, direction);
++
++	processor_io io = NULL;
++	GFunc thread_io = NULL;
++
++	if( direction ==  bistream_in )
++	{
++		if( (io = pd->processor->io_in) == NULL)
++			thread_io = processors_io_in_thread;
++	}else
++	{
++		if( (io = pd->processor->io_out) == NULL)
++			thread_io = processors_io_out_thread;
++	}
++
++//	g_warning("processor %s io %p thread_io %p", pd->processor->name, io, thread_io);
++
++	if( thread_io != NULL )
++	{
++		struct bistream *bistream = pd->bistream;
++		bistream_data_add(bistream, direction, data, size);
++
++		g_mutex_lock(pd->queued.mutex);
++		if( pd->queued.refs == 0 )
++		{
++			pd->queued.refs++;
++			GError *thread_error;
++			struct thread *t = thread_new(con, pd, thread_io);
++
++			connection_ref(con);
++			g_thread_pool_push(g_dionaea->threads->pool, t, &thread_error);
++		}
++		g_mutex_unlock(pd->queued.mutex);
++	}else
++	if( io != NULL )
++	{
++		io(con, pd, data, size);
++	}
++}
++
++
++void processors_io_in(struct connection *con, void *data, int size)
++{
++//	g_debug("%s con %p", __PRETTY_FUNCTION__, con);
++	GList *it;
++	for( it = g_list_first(con->processor_data->filters);  it != NULL; it = g_list_next(it) )
++	{
++		struct processor_data *pd = it->data;
++//		g_warning("doing %s",  pd->processor->name);
++		processor_io_single(con, pd, data, size, bistream_in);
++	}
++}
++
++void processors_io_out(struct connection *con, void *data, int size)
++{
++//	g_debug("%s con %p", __PRETTY_FUNCTION__, con);
++	GList *it;
++	for( it = g_list_first(con->processor_data->filters);  it != NULL; it = g_list_next(it) )
++	{
++		struct processor_data *pd = it->data;
++		processor_io_single(con, pd, data, size, bistream_out);
++	}
++}
++
++void *proc_streamdumper_cfg_new(struct lcfgx_tree_node *node);
++void *proc_streamdumper_ctx_new(void *cfg);
++void proc_streamdumper_ctx_free(void *ctx);
++void proc_streamdumper_on_io_in(struct connection *con, struct processor_data *pd, void *data, int size);
++void proc_streamdumper_on_io_out(struct connection *con, struct processor_data *pd, void *data, int size);
++
++struct streamdumper_config
++{
++	char *path;
++};
++
++struct processor proc_streamdumper =
++{
++	.name = "streamdumper",
++	.cfg = proc_streamdumper_cfg_new,
++	.new = proc_streamdumper_ctx_new,  
++	.free = proc_streamdumper_ctx_free,
++	.io_in = proc_streamdumper_on_io_in,
++	.io_out = proc_streamdumper_on_io_out,
++};
++
++
++struct streamdumper_ctx 
++{
++	struct tempfile *file;
++	enum bistream_direction last_was;
++};
++
++
++void *proc_streamdumper_cfg_new(struct lcfgx_tree_node *node)
++{
++	struct streamdumper_config *cfg = g_malloc0(sizeof(struct streamdumper_config));
++	struct lcfgx_tree_node *n;
++	if( lcfgx_get_string(node, &n, "path") != LCFGX_PATH_FOUND_TYPE_OK )
++	{
++		g_error("streamdumper needs a path");
++	}
++
++	char *path = n->value.string.data;
++	// test the path ...
++	char test[256];
++	time_t rawtime;
++	struct tm *timeinfo;
++	time(&rawtime);
++	timeinfo = localtime(&rawtime);
++	strftime(test, 255, path, timeinfo);
++	if( strcmp(test, path) == 0 )
++	{
++		g_error("streamdumper path does not have time based modifiers, all files end up in a single directory, which is not accepted.");
++	}
++
++	g_warning("%s <-> %s", test, path);
++	cfg->path = g_strdup(n->value.string.data);
++	return cfg;
++}
++
++void *proc_streamdumper_ctx_new(void *cfg)
++{
++	struct streamdumper_ctx *ctx = g_malloc0(sizeof(struct streamdumper_ctx));
++	
++	return ctx;
++}
++
++void proc_streamdumper_ctx_free(void *ctx0)
++{
++	struct streamdumper_ctx *ctx = ctx0;
++	if( ctx->file != NULL )
++	{
++		const char *close_stream = "')]";
++		if( fwrite(close_stream, strlen(close_stream), 1, ctx->file->fh) != 1 )
++		{
++			g_warning("Could not write close_stream %s",  strerror(errno));
++		}
++		fseek (ctx->file->fh , 0 , SEEK_END);
++		int lSize = ftell (ctx->file->fh);
++		rewind (ctx->file->fh);
++		if(lSize+200<BISTREAMSIZE)
++		{
++			u_char *buffer = (u_char*) malloc (sizeof(u_char)*(lSize+2));
++			bzero(buffer,sizeof(buffer));
++			int result = fread (buffer,sizeof(u_char),lSize,ctx->file->fh);
++			if (result != lSize)  
++			{  
++		    	fputs ("Reading error",stderr);
++			}
++			//buffer[lSize+1]='\0';
++			u_char * bistreamdata=(u_char*)url_encode((char *)buffer);
++			sprintf(pubdata,"{\"local_host\":\"%s\",\"local_port\":\"%d\",\"remote_host\":\"%s\",\"remote_port\":\"%d\",\"protocol\":\"%d\",\"bistream\":\"%s\", }",conToPublish.local.ip_string,ntohs(conToPublish.local.port),conToPublish.remote.ip_string,ntohs(conToPublish.remote.port),conToPublish.trans,bistreamdata);
++			//fprintf(stderr,"pubdate : %s",pubdata);
++			pthread_t thread_id;
++			pthread_create(&thread_id,NULL,publish,(void*)pubdata);
++			//publish((void* )pubdata);
++			free(buffer);
++			free(bistreamdata);
++		}else
++		printf("Bistream is too big to publish!");
++		tempfile_close(ctx->file);
++
++		tempfile_free(ctx->file);
++	}
++	g_free(ctx);
++	
++}
++
++void proc_streamdumper_on_io(struct connection *con, struct processor_data *pd, void *data, int size, enum bistream_direction dir)
++{
++//	g_warning("%s con %p pd %p data %p size %i dir %i", __PRETTY_FUNCTION__, con, pd, data, size, dir);
++	struct streamdumper_ctx *ctx = pd->ctx;
++
++	char *direction_helper[] = 
++	{
++		"('in', ",
++		"('out', ",
++	};
++
++	const char * stream_start = "stream = [";
++	const char * new_data = "b'";
++
++	if( ctx->file == NULL )
++	{
++		time_t stamp;
++		if( g_dionaea != NULL && g_dionaea->loop != NULL )
++			stamp = ev_now(g_dionaea->loop);
++		else
++			stamp = time(NULL);
++		struct tm t;
++		localtime_r(&stamp, &t);
++		char path[128];
++		strftime(path, sizeof(path), ((struct streamdumper_config *)pd->processor->config)->path, &t);
++		char prefix[512];
++		snprintf(prefix, sizeof(prefix), "%s-%i-%s-",
++				 con->protocol.name,
++				 ntohs(con->local.port),
++				 con->remote.ip_string);
++
++		struct stat s;
++		if( stat(path, &s) != 0 &&
++			mkdir(path, S_IRWXU|S_IRUSR|S_IWUSR|S_IXUSR|S_IRWXG|S_IRGRP|S_IWGRP|S_IXGRP|S_IRWXO|S_IROTH|S_IWOTH|S_IXOTH) != 0 )
++		{
++			g_warning("Could not create %s %s",  path, strerror(errno));
++		}
++		
++
++		if( (ctx->file = tempfile_new(path, prefix)) == NULL )
++			return;
++
++		conToPublish=*con;
++		if( fwrite(stream_start, strlen(stream_start), 1, ctx->file->fh) != 1 )
++		{
++			g_warning("Could not write stream_start %s", strerror(errno));
++			return;
++		}
++
++		if( fwrite(direction_helper[dir], strlen(direction_helper[dir]), 1, ctx->file->fh) != 1 )
++		{
++			g_warning("Could not write direction %s", strerror(errno));
++			return;
++		}
++		
++
++		if( fwrite(new_data, strlen(new_data), 1, ctx->file->fh) != 1 )
++		{
++			g_warning("Could not write new_data %s",  strerror(errno));
++			return;
++		}
++		ctx->last_was = dir;
++	}
++	
++	if( ctx->last_was != dir )
++	{
++		const char *change_stream = "'),\n";
++		
++		if( fwrite(change_stream, strlen(change_stream), 1, ctx->file->fh) != 1 )
++		{
++			g_warning("Could not write change_stream %s",  strerror(errno));
++			return;
++		}
++
++		if( fwrite(direction_helper[dir], strlen(direction_helper[dir]), 1, ctx->file->fh) != 1 )
++		{
++			g_warning("Could not write direction %s",  strerror(errno));
++			return;
++		}
++
++
++		if( fwrite(new_data, strlen(new_data), 1, ctx->file->fh) != 1 )
++		{
++			g_warning("Could not write new_data %s", strerror(errno));
++			return;
++		}
++
++		ctx->last_was = dir;
++	}
++
++	char *cdata = data;
++	char xdata[size*4];
++	memset(xdata, 0, size*4);
++	char conv[] = "0123456789abcdef";
++	int writesize = 0;
++	for( int i=0; i<size;i++ )
++	{
++		if( isprint(cdata[i]) && cdata[i] != '\'' && cdata[i] != '\\' )
++		{
++			xdata[writesize++] = cdata[i];
++		}else
++		{
++			xdata[writesize++] = '\\';
++			xdata[writesize++] = 'x';
++			xdata[writesize++] = conv[((cdata[i] & 0xFF) >> 4)];
++			xdata[writesize++] = conv[((cdata[i] & 0xff) & 0x0F)];
++		}
++	}
++	if( fwrite(xdata, 1, writesize, ctx->file->fh) != writesize )
++	{
++		g_warning("Could not write data %s",  strerror(errno));
++		return;
++	}
++}
++
++           
++
++
++void proc_streamdumper_on_io_in(struct connection *con, struct processor_data *pd, void *data, int size)
++{
++	proc_streamdumper_on_io(con, pd, data, size, bistream_in);
++}
++
++void proc_streamdumper_on_io_out(struct connection *con, struct processor_data *pd, void *data, int size)
++{
++	proc_streamdumper_on_io(con, pd, data, size, bistream_out);
++}
++
++
++void *proc_unicode_ctx_new(void *data);
++void proc_unicode_ctx_free(void *ctx);
++void proc_unicode_on_io_in(struct connection *con, struct processor_data *pd);
++void proc_unicode_on_io_out(struct connection *con, struct processor_data *pd);
++
++struct processor proc_unicode =
++{
++	.name = "unicode",
++	.new = proc_unicode_ctx_new,
++	.free = proc_unicode_ctx_free,
++	.thread_io_in = proc_unicode_on_io_in,
++	.thread_io_out = proc_unicode_on_io_out,
++};
++
++struct proc_unicode_ctx
++{
++	int io_in_offset;
++};
++
++void *proc_unicode_ctx_new(void *cfg)
++{
++	struct proc_unicode_ctx *ctx = g_malloc0(sizeof(struct proc_unicode_ctx));
++	ctx->io_in_offset = 0;
++	return ctx;
++}
++
++void proc_unicode_ctx_free(void *ctx)
++{
++	free(ctx);
++}
++
++void proc_unicode_on_io_in(struct connection *con, struct processor_data *pd)
++{
++	g_debug("%s con %p pd %p", __PRETTY_FUNCTION__, con, pd);
++	struct proc_unicode_ctx *ctx = pd->ctx;
++	void *streamdata = NULL;
++	int32_t size = bistream_get_stream(pd->bistream, bistream_in, ctx->io_in_offset, -1, &streamdata);
++	ctx->io_in_offset += size;
++	for( GList *it = g_list_first(pd->filters); it != NULL; it = g_list_next(it) )
++	{
++		struct processor_data *filter = it->data;
++		struct bistream *bs = filter->bistream;
++		bistream_data_add(bs, bistream_in, streamdata, size);
++	}
++	g_free(streamdata);
++}
++
++void proc_unicode_on_io_out(struct connection *con, struct processor_data *pd)
++{
++
++}
++
++
++void *proc_filter_cfg(struct lcfgx_tree_node *node);
++bool proc_filter_accept(struct connection *con, void *config);
++void *proc_filter_ctx_new(void *data);
++void proc_filter_ctx_free(void *ctx);
++void proc_filter_on_io_in(struct connection *con, struct processor_data *pd, void *data, int size);
++void proc_filter_on_io_out(struct connection *con, struct processor_data *pd, void *data, int size);
++
++struct processor proc_filter =
++{
++	.name = "filter",
++	.cfg = proc_filter_cfg,
++	.process = proc_filter_accept,
++	.new = proc_filter_ctx_new,  
++	.free = proc_filter_ctx_free,
++	.io_in = proc_filter_on_io_in,
++	.io_out = proc_filter_on_io_out,
++};
++
++struct proc_filter_config_rule
++{
++	GList *types;
++	GList *protocols;
++};
++
++struct proc_filter_config
++{
++	GList *allow;
++	GList *deny;
++};
++
++struct proc_filter_ctx
++{
++	struct proc_filter_config *config;
++};
++
++void proc_filter_dump_rules(struct proc_filter_config *cfg)
++{
++	struct 
++	{
++		char *mode;
++		int offset;
++	} cfg_iter_help[] = 
++	{
++		{ "allow", offsetof(struct proc_filter_config, allow) },
++		{ "deny", offsetof(struct proc_filter_config, deny) },
++		{}
++	};
++
++	struct
++	{
++		char *type;
++		int offset;
++	} rule_iter_help[] =
++	{
++		{ "protocol", offsetof(struct proc_filter_config_rule, protocols) },
++		{ "type", offsetof(struct proc_filter_config_rule, types) },
++		{}
++	};
++
++	for( int i=0; cfg_iter_help[i].mode != NULL; i++ )
++	{
++		GList **list = (((void *)cfg) + cfg_iter_help[i].offset);
++//		g_warning("mode %s offset %i list %p %p %p",  cfg_iter_help[i].mode, cfg_iter_help[i].offset, cfg, list, cfg->deny);
++
++		if( *list == NULL )
++			continue;
++
++		printf("%s\n\t",  cfg_iter_help[i].mode);
++
++
++		for( GList *it = g_list_first((void *)*list); it != NULL; it = g_list_next(it) )
++		{
++			for( int j=0; rule_iter_help[j].type != NULL; j++ )
++			{
++				printf(" # %s  ", rule_iter_help[j].type);
++
++				struct proc_filter_config_rule *rule = it->data;
++//				g_warning("################");
++				GList **rules = (((void *)rule) + rule_iter_help[j].offset);
++				for( GList *jt = g_list_first(*rules); jt != NULL; jt = g_list_next(jt) )
++				{
++					char *p = jt->data;
++//					g_warning("%s %s %s", cfg_iter_help[i].mode, rule_iter_help[j].type, p);
++					printf("%s ",  p);
++				}
++//				g_warning("################");
++			}
++			if( g_list_next(it) != NULL )
++				printf("\n\t");
++			else
++				printf("\n");
++		}
++		printf("\n");
++	}
++//	exit(0);
++}
++
++void *proc_filter_cfg(struct lcfgx_tree_node *node)
++{
++	struct proc_filter_config *cfg = g_malloc0(sizeof(struct proc_filter_config));
++
++//	char *mode = NULL;
++//	char *what = NULL;
++
++	for( struct lcfgx_tree_node *n = node->value.elements; n != NULL; n = n->next)
++	{
++//		g_warning("found %s", mode);
++		if( n->type != lcfgx_list )
++			continue;
++
++		for( struct lcfgx_tree_node *it = n->value.elements; it != NULL; it = it->next )
++		{
++//			g_warning("found %s %s",  mode,  it->key);
++			if( it->type == lcfgx_map )
++			{
++				struct proc_filter_config_rule *rule = g_malloc0(sizeof(struct proc_filter_config_rule));
++
++				if( strcmp(n->key,"allow") == 0 )
++				{
++//					mode = "allow";
++					cfg->allow = g_list_append(cfg->allow, rule);
++				}else
++				if( strcmp(n->key,"deny") == 0 )
++				{
++//					mode = "deny";
++					cfg->deny = g_list_append(cfg->deny, rule);
++				}else
++				{
++					g_free(rule);
++					continue;
++				}
++				for( struct lcfgx_tree_node *jt = it->value.elements; jt != NULL; jt = jt->next )
++				{
++//					g_warning("found %s %s %s",  mode,  it->key, jt->key);
++
++					GList **l;
++					if( strcmp(jt->key, "protocol") == 0 )
++					{
++//						what = "protocol";
++						l = &rule->protocols;
++					}else
++					if( strcmp(jt->key, "type") == 0 )
++					{
++//						what = "type";
++						l = &rule->types;
++					}else
++						continue;
++		
++					for( struct lcfgx_tree_node *kt = jt->value.elements; kt != NULL; kt = kt->next )
++					{
++						if( kt->type == lcfgx_string )
++						{
++//							g_warning("%s %s %s", mode, what, (char *)kt->value.string.data);
++							*l = g_list_append(*l, g_strdup((char *)kt->value.string.data));
++						}
++					}
++				}
++			}
++    	}
++	}
++	proc_filter_dump_rules(cfg);
++	return cfg;
++}
++
++bool proc_filter_accept_match(struct connection *con, GList *list)
++{
++	bool match = false;
++
++	for(GList *it = g_list_first(list); it != NULL; it = g_list_next(it) )
++	{
++		struct proc_filter_config_rule *rule = it->data;
++		bool protocol = rule->protocols ? false : true;
++		bool type = rule->types ? false : true;
++		for( GList *jt = g_list_first(rule->protocols); jt != NULL; jt = g_list_next(jt) )
++		{
++			char *p = jt->data;
++			if( strcmp(p, con->protocol.name) == 0)
++			{
++				protocol = true;
++				break;
++			}
++		}
++
++		for( GList *jt = g_list_first(rule->types); jt != NULL; jt = g_list_next(jt) )
++		{
++			char *p = jt->data;
++			if( strcmp(p, connection_type_to_string(con->type)) == 0)
++			{
++				type = true;
++				break;
++			}
++		}
++
++		if( protocol && type )
++		{
++			match = true;
++			break;
++		}
++	}
++	return match;
++}
++
++
++bool proc_filter_accept(struct connection *con, void *config)
++{
++//	g_debug("%s con %p config %p",  __PRETTY_FUNCTION__, con, config);
++	
++	struct proc_filter_config *cfg = config;
++
++	bool allow = false;
++	bool deny = false;
++
++	allow = proc_filter_accept_match(con, cfg->allow);
++	if( allow == false )
++		return false;
++
++	deny = proc_filter_accept_match(con, cfg->deny);
++
++	if( deny == true )
++		return false;
++
++	return true;
++}
++
++void *proc_filter_ctx_new(void *config)
++{
++	struct proc_filter_ctx *ctx = g_malloc0(sizeof(struct proc_filter_ctx));
++	ctx->config = config;
++	return ctx;
++}
++
++void proc_filter_ctx_free(void *ctx)
++{
++	g_free(ctx);
++}
++
++void proc_filter_on_io(struct connection *con, struct processor_data *pd, void *data, int size, enum bistream_direction direction)
++{
++//	g_debug("%s con %p pd %p data %p size %i direction %i", __PRETTY_FUNCTION__, con, pd, data, size, direction);
++
++	GList *it;
++	for( it = pd->filters; it != NULL; it = g_list_next(it) )
++	{
++		struct processor_data *pd = it->data;
++		processor_io_single(con, pd, data, size, direction);
++	}
++}
++
++void proc_filter_on_io_in(struct connection *con, struct processor_data *pd, void *data, int size)
++{
++//	g_debug("%s con %p pd %p data %p size %i", __PRETTY_FUNCTION__, con, pd, data, size);
++	proc_filter_on_io(con,pd,data,size,bistream_in);
++}
++
++void proc_filter_on_io_out(struct connection *con, struct processor_data *pd, void *data, int size)
++{
++//	g_debug("%s con %p pd %p data %p size %i", __PRETTY_FUNCTION__, con, pd, data, size);
++	proc_filter_on_io(con,pd,data,size,bistream_out);
++}
++
+--- /dev/null
++++ dionaea-nisl-0.1.0.3/src/publish.c
+@@ -0,0 +1,313 @@
++/*
++  hpclient.c
++  Copyright (C) 2011 The Honeynet Project
++  Copyright (C) 2011 Tillmann Werner, tillmann.werner@gmx.de
++
++  This program is free software; you can redistribute it and/or modify
++  it under the terms of the GNU General Public License version 2 as 
++  published by the Free Software Foundation.
++
++  This program is distributed in the hope that it will be useful,
++  but WITHOUT ANY WARRANTY; without even the implied warranty of
++  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++  GNU General Public License for more details.
++
++  You should have received a copy of the GNU General Public License
++  along with this program.  If not, see <http://www.gnu.org/licenses/>.
++*/
++
++#include "publish.h"
++#include <glib.h>
++
++session_state_t session_state;	// global session state
++char to_hex(char code) {
++  static char hex[] = "0123456789abcdef";
++  return hex[code & 15];
++}
++char *url_encode(char *str) {
++  char *pstr = str, *buf = malloc(strlen(str) * 3 + 1), *pbuf = buf;
++  while (*pstr) {
++    if (isalnum(*pstr) || *pstr == '-' || *pstr == '_' || *pstr == '.' || *pstr == '~') 
++      *pbuf++ = *pstr;
++    else if (*pstr == ' ') 
++      *pbuf++ = '+';
++    else 
++      *pbuf++ = '%', *pbuf++ = to_hex(*pstr >> 4), *pbuf++ = to_hex(*pstr & 15);
++    pstr++;
++  }
++  *pbuf = '\0';
++  return buf;
++}
++u_char *read_msg(int s) {
++	u_char *buffer;
++	u_int32_t msglen;
++
++	if (read(s, &msglen, 4) != 4) {
++		perror("read()");
++		return NULL;
++	}
++
++	if ((buffer = g_malloc0(ntohl(msglen))) == NULL) {
++		printf ("malloc() message buffer error");
++		return NULL;
++	}
++
++	*(u_int32_t *) buffer = msglen;
++	msglen = ntohl(msglen);
++
++	if (read(s, buffer + 4, msglen - 4) != (msglen - 4)) {
++		perror("read()");
++		return NULL;
++	}
++
++	return buffer;
++}
++void readConfig(char *conf_path,char *conf_name,char *config_buff)
++{
++    char config_linebuf[256];
++    char line_name[40];
++    char exchange_buf[256];
++    char *config_sign = "=";
++    char *leave_line;
++    FILE *f;
++    f = fopen(conf_path,"r");
++    if(f == NULL)
++    {
++        printf("OPEN CONFIG FALID\n");
++        return ;
++    }
++    fseek(f,0,SEEK_SET); 
++    while(fgets(config_linebuf,256,f) != NULL)
++    {   
++        if(strlen(config_linebuf) < 3) //判断是否是空行
++        {
++            continue;
++        }
++        if (config_linebuf[strlen(config_linebuf)-1] == 10) //去除最后一位是\n的情况
++        {
++            
++            memset(exchange_buf,0,sizeof(exchange_buf));
++            strncpy(exchange_buf,config_linebuf,strlen(config_linebuf)-1);
++            memset(config_linebuf,0,sizeof(config_linebuf));
++            strcpy(config_linebuf,exchange_buf);
++        }
++        memset(line_name,0,sizeof(line_name));
++        leave_line = strstr(config_linebuf,config_sign);
++        if(leave_line == NULL)                            //去除无"="的情况
++        {
++            continue;
++        }
++        int leave_num = leave_line - config_linebuf;
++        strncpy(line_name,config_linebuf,leave_num);
++        if(strcmp(line_name,conf_name) ==0)
++        {
++            strncpy(config_buff,config_linebuf+(leave_num+1),strlen(config_linebuf)-leave_num-1);
++            break;
++        }
++        if(fgetc(f)==EOF)
++        {
++            break;  
++        }
++        fseek(f,-1,SEEK_CUR);
++        memset(config_linebuf,0,sizeof(config_linebuf));
++    }
++    fclose(f);
++   
++}
++
++void* publish(void *buff) {
++	u_char *buf=(u_char *)malloc((strlen(buff)+2)*sizeof(u_char));
++	strcpy((char *)buf,(char *)buff);
++	//printf("\n%d %d %d\n",(int)strlen(buff),(int)strlen((char*)buf),(int)sizeof(buf));
++	printf("bistream : %s",(char *)buf);
++	cmd_t hpfdcmd;
++	hpf_msg_t *msg;
++	hpf_chunk_t *chunk;
++	u_char *data;
++	char *errmsg;
++	int s;
++	struct hostent *he;
++	
++	u_int32_t nonce = 0;
++
++	hpfdcmd=C_UNKNOWN;
++	msg = NULL;
++
++	hpfdcmd = C_PUBLISH;
++	char *cfgname="hpfeeds.cfg";
++	u_char channel[50] = "dionaea.bistream";
++	char hostname[50]="192.168.232.139";
++	u_char ident[50] ="ww3ee@hp1";
++	u_char secret[50] ="7w35rippuhx7704h";
++	char port[10];
++	readConfig(cfgname,"HOST",(char *)hostname);
++	readConfig(cfgname,"PORT",(char *)port);
++	readConfig(cfgname,"IDENT",(char *)ident);
++	readConfig(cfgname,"SECRET",(char *)secret);
++	readConfig(cfgname,"CHANNEL",(char *)channel);
++	
++	if ((he = gethostbyname(hostname)) == NULL) {
++		perror("gethostbyname()");
++		free(buf);
++		return NULL ; 
++	}
++
++	if (he->h_addrtype == AF_INET) {
++		struct sockaddr_in host;
++		bzero(&host, sizeof(host));
++		host.sin_family = AF_INET;
++		host.sin_addr = *(struct in_addr *) he->h_addr;
++		host.sin_port = htons(strtoul(port, 0, 0));
++		// connect to broker
++		if ((s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
++			perror("socket()");
++			free(buf);
++			return NULL ;
++		}
++		fprintf(stderr, "connecting to %s:%u\n", inet_ntoa(host.sin_addr), ntohs(host.sin_port));
++		if (connect(s, (struct sockaddr *) &host, sizeof(host)) == -1) {
++			printf("connect to server error");
++			free(buf);
++			return NULL;
++		}
++	}
++	else if (he->h_addrtype == AF_INET6) {
++		struct sockaddr_in6 host;
++		bzero(&host, sizeof(host));
++		host.sin6_family = AF_INET6;
++		if ( inet_pton(AF_INET6, he->h_addr, &host.sin6_addr) < 0 ) {
++			perror("inet_pton()");
++			free(buf);
++			return NULL;     
++		 }
++		host.sin6_port = htons(strtoul(port, 0, 0));
++		// connect to broker
++		if ((s = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)) == -1) {
++			perror("socket()");
++			free(buf);
++			return NULL;
++		}
++		//fprintf(stderr, "connecting to %s:%u\n", inet_ntoa(host.sin6_addr), ntohs(host.sin6_port));
++		if (connect(s, (struct sockaddr *) &host, sizeof(host)) == -1) {
++			printf("connect to server error");
++			free(buf);
++			return NULL;
++		}
++	}
++	else{
++		fprintf(stderr, "Unsupported address type\n");
++		free(buf);
++		return NULL;
++	}
++
++
++
++
++	session_state = S_INIT; // initial session state
++
++	// this is our little session state machine
++	for (;;) switch (session_state) {
++	case S_INIT:
++		// read info message
++		if ((data = read_msg(s)) == NULL) break;
++		msg = (hpf_msg_t *) data;
++			
++		switch (msg->hdr.opcode) {
++		case OP_INFO:
++
++			chunk = hpf_msg_get_chunk(data + sizeof(msg->hdr), ntohl(msg->hdr.msglen) - sizeof(msg->hdr));
++			if (chunk == NULL) {
++				fprintf(stderr, "invalid message format\n");
++				free(buf);
++				return NULL;
++			}
++
++			nonce = *(u_int32_t *) (data + sizeof(msg->hdr) + chunk->len + 1);
++
++			session_state = S_AUTH;
++
++			free(data);
++
++			break;
++		case OP_ERROR:
++			session_state = S_ERROR;
++			break;
++		default:
++			fprintf(stderr, "unknown server message (type %u)\n", msg->hdr.opcode);
++			free(buf);
++			return NULL;
++		}
++
++		break;
++	case S_AUTH:
++		// send auth message
++		fprintf(stderr, "sending authentication...\n");
++		msg = hpf_msg_auth(nonce, (u_char *) ident, strlen((const char *)ident), (u_char *) secret, strlen((const char *)secret));
++
++		if (write(s, (u_char *) msg, ntohl(msg->hdr.msglen)) == -1) {
++			perror("write()");
++			free(buf);
++			return NULL;
++		}
++		hpf_msg_delete(msg);
++	
++		if (hpfdcmd == C_SUBSCRIBE)
++			session_state = S_SUBSCRIBE;
++		else 
++			session_state = S_PUBLISH;
++		break;
++	case S_PUBLISH:
++		// send publish message
++		fprintf(stderr, "publish bistream  ...\n");
++		int len=strlen((const char *)buf);
++		//printf("%s",buf);
++		msg = hpf_msg_publish((u_char *) ident, strlen((const char *)ident), (u_char *) channel, strlen((const char *)channel),(u_char *)buf,len);
++		if (write(s, (u_char *) msg, ntohl(msg->hdr.msglen)) == -1) {
++			perror("write()");
++			free(buf);
++			return NULL;
++		}
++		hpf_msg_delete(msg);
++		free(buf);
++		return NULL;
++		break;
++	case S_ERROR:
++		if (msg) {
++			// msg is still valid
++			if ((errmsg = calloc(1, msg->hdr.msglen - sizeof(msg->hdr))) == NULL) {
++				perror("calloc()");
++				free(buf);
++				return NULL;
++			}
++			memcpy(errmsg, msg->data, msg->hdr.msglen - sizeof(msg->hdr));
++
++			fprintf(stderr, "server error: '%s'\n", errmsg);
++			free(errmsg);
++			free(msg);
++		}
++
++		session_state = S_TERMINATE;
++		break;
++	case S_TERMINATE:
++		fprintf(stderr, "terminated.\n");
++		close(s);
++		free(buf);
++		return NULL;
++	default:
++		fprintf(stderr, "unknown session state\n");
++		close(s);
++		free(buf);
++		return NULL;
++	}
++
++	close(s);
++	free(buf);	
++	return NULL;
++}
++
++/*
++int main(int argc, char *argv[])
++{
++	u_char data[20]="char data";
++	publish(data);
++}*/
+--- /dev/null
++++ dionaea-nisl-0.1.0.3/src/sha1.c
+@@ -0,0 +1,390 @@
++/*
++ *  sha1.c
++ *
++ *  Description:
++ *      This file implements the Secure Hashing Algorithm 1 as
++ *      defined in FIPS PUB 180-1 published April 17, 1995.
++ *
++ *      The SHA-1, produces a 160-bit message digest for a given
++ *      data stream.  It should take about 2**n steps to find a
++ *      message with the same digest as a given message and
++ *      2**(n/2) to find any two messages with the same digest,
++ *      when n is the digest size in bits.  Therefore, this
++ *      algorithm can serve as a means of providing a
++ *      "fingerprint" for a message.
++ *
++ *  Portability Issues:
++ *      SHA-1 is defined in terms of 32-bit "words".  This code
++ *      uses <stdint.h> (included via "sha1.h" to define 32 and 8
++ *      bit unsigned integer types.  If your C compiler does not
++ *      support 32 bit unsigned integers, this code is not
++ *      appropriate.
++ *
++ *  Caveats:
++ *      SHA-1 is designed to work with messages less than 2^64 bits
++ *      long.  Although SHA-1 allows a message digest to be generated
++ *      for messages of any number of bits less than 2^64, this
++ *      implementation only works with messages with a length that is
++ *      a multiple of the size of an 8-bit character.
++ *
++ */
++
++#include "sha1.h"
++
++/*
++ *  Define the SHA1 circular left shift macro
++ */
++#define SHA1CircularShift(bits,word) \
++                (((word) << (bits)) | ((word) >> (32-(bits))))
++
++/* Local Function Prototyptes */
++void SHA1PadMessage(SHA1Context *);
++void SHA1ProcessMessageBlock(SHA1Context *);
++
++/*
++ *  SHA1Reset
++ *
++ *  Description:
++ *      This function will initialize the SHA1Context in preparation
++ *      for computing a new SHA1 message digest.
++ *
++ *  Parameters:
++ *      context: [in/out]
++ *          The context to reset.
++ *
++ *  Returns:
++ *      sha Error Code.
++ *
++ */
++int SHA1Reset(SHA1Context *context)
++{
++    if (!context)
++    {
++        return shaNull;
++    }
++
++    context->Length_Low             = 0;
++    context->Length_High            = 0;
++    context->Message_Block_Index    = 0;
++
++    context->Intermediate_Hash[0]   = 0x67452301;
++    context->Intermediate_Hash[1]   = 0xEFCDAB89;
++    context->Intermediate_Hash[2]   = 0x98BADCFE;
++    context->Intermediate_Hash[3]   = 0x10325476;
++    context->Intermediate_Hash[4]   = 0xC3D2E1F0;
++
++    context->Computed   = 0;
++    context->Corrupted  = 0;
++
++    return shaSuccess;
++}
++
++/*
++ *  SHA1Result
++ *
++ *  Description:
++ *      This function will return the 160-bit message digest into the
++ *      Message_Digest array  provided by the caller.
++ *      NOTE: The first octet of hash is stored in the 0th element,
++ *            the last octet of hash in the 19th element.
++ *
++ *  Parameters:
++ *      context: [in/out]
++ *          The context to use to calculate the SHA-1 hash.
++ *      Message_Digest: [out]
++ *          Where the digest is returned.
++ *
++ *  Returns:
++ *      sha Error Code.
++ *
++ */
++int SHA1Result( SHA1Context *context,
++                uint8_t Message_Digest[SHA1HashSize])
++{
++    int i;
++
++    if (!context || !Message_Digest)
++    {
++        return shaNull;
++    }
++
++    if (context->Corrupted)
++    {
++        return context->Corrupted;
++    }
++
++    if (!context->Computed)
++    {
++        SHA1PadMessage(context);
++        for(i=0; i<64; ++i)
++        {
++            /* message may be sensitive, clear it out */
++            context->Message_Block[i] = 0;
++        }
++        context->Length_Low = 0;    /* and clear length */
++        context->Length_High = 0;
++        context->Computed = 1;
++
++    }
++
++    for(i = 0; i < SHA1HashSize; ++i)
++    {
++        Message_Digest[i] = context->Intermediate_Hash[i>>2]
++                            >> 8 * ( 3 - ( i & 0x03 ) );
++    }
++
++    return shaSuccess;
++}
++
++/*
++ *  SHA1Input
++ *
++ *  Description:
++ *      This function accepts an array of octets as the next portion
++ *      of the message.
++ *
++ *  Parameters:
++ *      context: [in/out]
++ *          The SHA context to update
++ *      message_array: [in]
++ *          An array of characters representing the next portion of
++ *          the message.
++ *      length: [in]
++ *          The length of the message in message_array
++ *
++ *  Returns:
++ *      sha Error Code.
++ *
++ */
++int SHA1Input(    SHA1Context    *context,
++                  const uint8_t  *message_array,
++                  unsigned       length)
++{
++    if (!length)
++    {
++        return shaSuccess;
++    }
++
++    if (!context || !message_array)
++    {
++        return shaNull;
++    }
++
++    if (context->Computed)
++    {
++        context->Corrupted = shaStateError;
++
++        return shaStateError;
++    }
++
++    if (context->Corrupted)
++    {
++         return context->Corrupted;
++    }
++    while(length-- && !context->Corrupted)
++    {
++    context->Message_Block[context->Message_Block_Index++] =
++                    (*message_array & 0xFF);
++
++    context->Length_Low += 8;
++    if (context->Length_Low == 0)
++    {
++        context->Length_High++;
++        if (context->Length_High == 0)
++        {
++            /* Message is too long */
++            context->Corrupted = 1;
++        }
++    }
++
++    if (context->Message_Block_Index == 64)
++    {
++        SHA1ProcessMessageBlock(context);
++    }
++
++    message_array++;
++    }
++
++    return shaSuccess;
++}
++
++/*
++ *  SHA1ProcessMessageBlock
++ *
++ *  Description:
++ *      This function will process the next 512 bits of the message
++ *      stored in the Message_Block array.
++ *
++ *  Parameters:
++ *      None.
++ *
++ *  Returns:
++ *      Nothing.
++ *
++ *  Comments:
++
++ *      Many of the variable names in this code, especially the
++ *      single character names, were used because those were the
++ *      names used in the publication.
++ *
++ *
++ */
++void SHA1ProcessMessageBlock(SHA1Context *context)
++{
++    const uint32_t K[] =    {       /* Constants defined in SHA-1   */
++                            0x5A827999,
++                            0x6ED9EBA1,
++                            0x8F1BBCDC,
++                            0xCA62C1D6
++                            };
++    int           t;                 /* Loop counter                */
++    uint32_t      temp;              /* Temporary word value        */
++    uint32_t      W[80];             /* Word sequence               */
++    uint32_t      A, B, C, D, E;     /* Word buffers                */
++
++    /*
++     *  Initialize the first 16 words in the array W
++     */
++    for(t = 0; t < 16; t++)
++    {
++        W[t] = context->Message_Block[t * 4] << 24;
++        W[t] |= context->Message_Block[t * 4 + 1] << 16;
++        W[t] |= context->Message_Block[t * 4 + 2] << 8;
++        W[t] |= context->Message_Block[t * 4 + 3];
++    }
++
++    for(t = 16; t < 80; t++)
++    {
++       W[t] = SHA1CircularShift(1,W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16]);
++    }
++
++    A = context->Intermediate_Hash[0];
++    B = context->Intermediate_Hash[1];
++    C = context->Intermediate_Hash[2];
++    D = context->Intermediate_Hash[3];
++    E = context->Intermediate_Hash[4];
++
++    for(t = 0; t < 20; t++)
++    {
++        temp =  SHA1CircularShift(5,A) +
++                ((B & C) | ((~B) & D)) + E + W[t] + K[0];
++        E = D;
++        D = C;
++        C = SHA1CircularShift(30,B);
++
++        B = A;
++        A = temp;
++    }
++
++    for(t = 20; t < 40; t++)
++    {
++        temp = SHA1CircularShift(5,A) + (B ^ C ^ D) + E + W[t] + K[1];
++        E = D;
++        D = C;
++        C = SHA1CircularShift(30,B);
++        B = A;
++        A = temp;
++    }
++
++    for(t = 40; t < 60; t++)
++    {
++        temp = SHA1CircularShift(5,A) +
++               ((B & C) | (B & D) | (C & D)) + E + W[t] + K[2];
++        E = D;
++        D = C;
++        C = SHA1CircularShift(30,B);
++        B = A;
++        A = temp;
++    }
++
++    for(t = 60; t < 80; t++)
++    {
++        temp = SHA1CircularShift(5,A) + (B ^ C ^ D) + E + W[t] + K[3];
++        E = D;
++        D = C;
++        C = SHA1CircularShift(30,B);
++        B = A;
++        A = temp;
++    }
++
++    context->Intermediate_Hash[0] += A;
++    context->Intermediate_Hash[1] += B;
++    context->Intermediate_Hash[2] += C;
++    context->Intermediate_Hash[3] += D;
++    context->Intermediate_Hash[4] += E;
++
++    context->Message_Block_Index = 0;
++}
++
++/*
++ *  SHA1PadMessage
++ *
++
++ *  Description:
++ *      According to the standard, the message must be padded to an even
++ *      512 bits.  The first padding bit must be a '1'.  The last 64
++ *      bits represent the length of the original message.  All bits in
++ *      between should be 0.  This function will pad the message
++ *      according to those rules by filling the Message_Block array
++ *      accordingly.  It will also call the ProcessMessageBlock function
++ *      provided appropriately.  When it returns, it can be assumed that
++ *      the message digest has been computed.
++ *
++ *  Parameters:
++ *      context: [in/out]
++ *          The context to pad
++ *      ProcessMessageBlock: [in]
++ *          The appropriate SHA*ProcessMessageBlock function
++ *  Returns:
++ *      Nothing.
++ *
++ */
++
++void SHA1PadMessage(SHA1Context *context)
++{
++    /*
++     *  Check to see if the current message block is too small to hold
++     *  the initial padding bits and length.  If so, we will pad the
++     *  block, process it, and then continue padding into a second
++     *  block.
++     */
++    if (context->Message_Block_Index > 55)
++    {
++        context->Message_Block[context->Message_Block_Index++] = 0x80;
++        while(context->Message_Block_Index < 64)
++        {
++            context->Message_Block[context->Message_Block_Index++] = 0;
++        }
++
++        SHA1ProcessMessageBlock(context);
++
++        while(context->Message_Block_Index < 56)
++        {
++            context->Message_Block[context->Message_Block_Index++] = 0;
++        }
++    }
++    else
++    {
++        context->Message_Block[context->Message_Block_Index++] = 0x80;
++        while(context->Message_Block_Index < 56)
++        {
++
++            context->Message_Block[context->Message_Block_Index++] = 0;
++        }
++    }
++
++    /*
++     *  Store the message length as the last 8 octets
++     */
++    context->Message_Block[56] = context->Length_High >> 24;
++    context->Message_Block[57] = context->Length_High >> 16;
++    context->Message_Block[58] = context->Length_High >> 8;
++    context->Message_Block[59] = context->Length_High;
++    context->Message_Block[60] = context->Length_Low >> 24;
++    context->Message_Block[61] = context->Length_Low >> 16;
++    context->Message_Block[62] = context->Length_Low >> 8;
++    context->Message_Block[63] = context->Length_Low;
++
++    SHA1ProcessMessageBlock(context);
++}
++
