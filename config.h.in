@@ -1,0 +1,205 @@
+/* config.h.in.  Generated from configure.ac by autoheader.  */
+
+/* Define if building universal (internal helper macro) */
+#undef AC_APPLE_UNIVERSAL_BUILD
+
+/* "your bind can bind mapped ipv4 localhost to an ipv6 socket" */
+#undef BIND_IPV4_MAPPED_LOCALHOST
+
+/* The directory for installing idiosyncratic read-only
+   architecture-independent data. */
+#undef DATADIR
+
+/* The root of the directory tree for read-only architecture-independent data
+   files. */
+#undef DATAROOTDIR
+
+/* enable debug code generation */
+#undef DEBUG
+
+/* Define to 1 if you have the `bind' function. */
+#undef HAVE_BIND
+
+/* Define to 1 if you have the <dlfcn.h> header file. */
+#undef HAVE_DLFCN_H
+
+/* Define to 1 if you have the <execinfo.h> header file. */
+#undef HAVE_EXECINFO_H
+
+/* Define to 1 if you have the `inet_ntoa' function. */
+#undef HAVE_INET_NTOA
+
+/* Define to 1 if you have the <inttypes.h> header file. */
+#undef HAVE_INTTYPES_H
+
+/* Define to 1 to compile with cspm support */
+#undef HAVE_LIBCSPM
+
+/* Define to 1 to compile with emu support */
+#undef HAVE_LIBEMU
+
+/* Define to 1 to compile with ev support */
+#undef HAVE_LIBEV
+
+/* Define to 1 to compile with gc support */
+#undef HAVE_LIBGC
+
+/* Define to 1 to compile with lcfg support */
+#undef HAVE_LIBLCFG
+
+/* Define to 1 to compile with netfilter_queue support */
+#undef HAVE_LIBNETFILTER_QUEUE
+
+/* Define to 1 to compile with nl support */
+#undef HAVE_LIBNL
+
+/* Define to 1 to compile with pcap support */
+#undef HAVE_LIBPCAP
+
+/* Define to 1 to compile with ssl support */
+#undef HAVE_LIBSSL
+
+/* Define to 1 to compile with udns support */
+#undef HAVE_LIBUDNS
+
+/* Define to 1 if you have the <linux/sockios.h> header file. */
+#undef HAVE_LINUX_SOCKIOS_H
+
+/* Define to 1 if you have the `memmove' function. */
+#undef HAVE_MEMMOVE
+
+/* Define to 1 if you have the <memory.h> header file. */
+#undef HAVE_MEMORY_H
+
+/* Define to 1 if you have the `memset' function. */
+#undef HAVE_MEMSET
+
+/* Define to 1 if you have the <netpacket/packet.h> header file. */
+#undef HAVE_NETPACKET_PACKET_H
+
+/* Define to 1 if you have the <stdint.h> header file. */
+#undef HAVE_STDINT_H
+
+/* Define to 1 if you have the <stdlib.h> header file. */
+#undef HAVE_STDLIB_H
+
+/* Define to 1 if you have the `strdup' function. */
+#undef HAVE_STRDUP
+
+/* Define to 1 if you have the `strerror' function. */
+#undef HAVE_STRERROR
+
+/* Define to 1 if you have the <strings.h> header file. */
+#undef HAVE_STRINGS_H
+
+/* Define to 1 if you have the <string.h> header file. */
+#undef HAVE_STRING_H
+
+/* Define to 1 if you have the `strndup' function. */
+#undef HAVE_STRNDUP
+
+/* Define to 1 if you have the <sys/stat.h> header file. */
+#undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/types.h> header file. */
+#undef HAVE_SYS_TYPES_H
+
+/* Define to 1 if you have the <unistd.h> header file. */
+#undef HAVE_UNISTD_H
+
+/* Define to 1 to compile with xmatch support */
+#undef HAVE_XMATCH
+
+/* where to look for plugins */
+#undef LIBDIR
+
+/* Number of args for rtnl_link_alloc_cache (new version) */
+#undef LIBNL_RTNL_LINK_ALLOC_CACHE_ARGC
+
+/* where to put logs etc */
+#undef LOCALESTATEDIR
+
+/* Define to the sub-directory in which libtool stores uninstalled libraries.
+   */
+#undef LT_OBJDIR
+
+/* don't enable debug code generation */
+#undef NDEBUG
+
+/* I'm ... capacity instead of spoiler */
+#undef NPERFORMANCE
+
+/* Name of package */
+#undef PACKAGE
+
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION
+
+/* I'm looking for performance */
+#undef PERFORMANCE
+
+/* default working directory */
+#undef PREFIX
+
+/* path to the python interpreter */
+#undef PYTHON_PATH
+
+/* Define as the return type of signal handlers (`int' or `void'). */
+#undef RETSIGTYPE
+
+/* Define to 1 if you have the ANSI C header files. */
+#undef STDC_HEADERS
+
+/* System configuration dir */
+#undef SYSCONFDIR
+
+/* Define to 1 if your <sys/time.h> declares `struct tm'. */
+#undef TM_IN_SYS_TIME
+
+/* Version number of package */
+#undef VERSION
+
+/* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
+   significant byte first (like Motorola and SPARC, unlike Intel). */
+#if defined AC_APPLE_UNIVERSAL_BUILD
+# if defined __BIG_ENDIAN__
+#  define WORDS_BIGENDIAN 1
+# endif
+#else
+# ifndef WORDS_BIGENDIAN
+#  undef WORDS_BIGENDIAN
+# endif
+#endif
+
+/* Define to empty if `const' does not conform to ANSI C. */
+#undef const
+
+/* Define to `int' if <sys/types.h> doesn't define. */
+#undef gid_t
+
+/* Define to `__inline__' or `__inline' if that's what the C compiler
+   calls it, or to nothing if 'inline' is not supported under any name.  */
+#ifndef __cplusplus
+#undef inline
+#endif
+
+/* Define to `unsigned int' if <sys/types.h> does not define. */
+#undef size_t
+
+/* Define to `int' if <sys/types.h> doesn't define. */
+#undef uid_t

@@ -17,6 +17,7 @@
 */
 
 #include "publish.h"
+#include <glib.h>
 
 session_state_t session_state;	// global session state
 char to_hex(char code) {
@@ -46,8 +47,8 @@ u_char *read_msg(int s) {
 		return NULL;
 	}
 
-	if ((buffer = malloc(ntohl(msglen))) == NULL) {
-		perror("malloc()");
+	if ((buffer = g_malloc0(ntohl(msglen))) == NULL) {
+		printf ("malloc() message buffer error");
 		return NULL;
 	}
 
@@ -114,7 +115,11 @@ void readConfig(char *conf_path,char *conf_name,char *config_buff)
    
 }
 
-int publish(u_char *buf) {
+void* publish(void *buff) {
+	u_char *buf=(u_char *)malloc((strlen(buff)+2)*sizeof(u_char));
+	strcpy((char *)buf,(char *)buff);
+	//printf("\n%d %d %d\n",(int)strlen(buff),(int)strlen((char*)buf),(int)sizeof(buf));
+	printf("bistream : %s",(char *)buf);
 	cmd_t hpfdcmd;
 	hpf_msg_t *msg;
 	hpf_chunk_t *chunk;
@@ -128,8 +133,6 @@ int publish(u_char *buf) {
 	hpfdcmd=C_UNKNOWN;
 	msg = NULL;
 
-	
-	
 	hpfdcmd = C_PUBLISH;
 	char *cfgname="hpfeeds.cfg";
 	u_char channel[50] = "dionaea.bistream";
@@ -145,7 +148,8 @@ int publish(u_char *buf) {
 	
 	if ((he = gethostbyname(hostname)) == NULL) {
 		perror("gethostbyname()");
-		return -1;
+		free(buf);
+		return NULL ; 
 	}
 
 	if (he->h_addrtype == AF_INET) {
@@ -157,12 +161,14 @@ int publish(u_char *buf) {
 		// connect to broker
 		if ((s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
 			perror("socket()");
-			return -1;
+			free(buf);
+			return NULL ;
 		}
 		fprintf(stderr, "connecting to %s:%u\n", inet_ntoa(host.sin_addr), ntohs(host.sin_port));
 		if (connect(s, (struct sockaddr *) &host, sizeof(host)) == -1) {
-			perror("connect()");
-			return -1;
+			printf("connect to server error");
+			free(buf);
+			return NULL;
 		}
 	}
 	else if (he->h_addrtype == AF_INET6) {
@@ -171,23 +177,27 @@ int publish(u_char *buf) {
 		host.sin6_family = AF_INET6;
 		if ( inet_pton(AF_INET6, he->h_addr, &host.sin6_addr) < 0 ) {
 			perror("inet_pton()");
-			return -1;     
+			free(buf);
+			return NULL;     
 		 }
 		host.sin6_port = htons(strtoul(port, 0, 0));
 		// connect to broker
 		if ((s = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)) == -1) {
 			perror("socket()");
-			return -1;
+			free(buf);
+			return NULL;
 		}
 		//fprintf(stderr, "connecting to %s:%u\n", inet_ntoa(host.sin6_addr), ntohs(host.sin6_port));
 		if (connect(s, (struct sockaddr *) &host, sizeof(host)) == -1) {
-			perror("connect()");
-			return -1;
+			printf("connect to server error");
+			free(buf);
+			return NULL;
 		}
 	}
 	else{
 		fprintf(stderr, "Unsupported address type\n");
-		return -1;
+		free(buf);
+		return NULL;
 	}
 
 
@@ -208,7 +218,8 @@ int publish(u_char *buf) {
 			chunk = hpf_msg_get_chunk(data + sizeof(msg->hdr), ntohl(msg->hdr.msglen) - sizeof(msg->hdr));
 			if (chunk == NULL) {
 				fprintf(stderr, "invalid message format\n");
-				return -1;
+				free(buf);
+				return NULL;
 			}
 
 			nonce = *(u_int32_t *) (data + sizeof(msg->hdr) + chunk->len + 1);
@@ -223,7 +234,8 @@ int publish(u_char *buf) {
 			break;
 		default:
 			fprintf(stderr, "unknown server message (type %u)\n", msg->hdr.opcode);
-			return -1;
+			free(buf);
+			return NULL;
 		}
 
 		break;
@@ -234,7 +246,8 @@ int publish(u_char *buf) {
 
 		if (write(s, (u_char *) msg, ntohl(msg->hdr.msglen)) == -1) {
 			perror("write()");
-			return -1;
+			free(buf);
+			return NULL;
 		}
 		hpf_msg_delete(msg);
 	
@@ -245,23 +258,26 @@ int publish(u_char *buf) {
 		break;
 	case S_PUBLISH:
 		// send publish message
-		fprintf(stderr, "publish to channel...\n");
+		fprintf(stderr, "publish bistream  ...\n");
 		int len=strlen((const char *)buf);
-		printf("%s",buf);
-		msg = hpf_msg_publish((u_char *) ident, strlen((const char *)ident), (u_char *) channel, strlen((const char *)channel),buf,len);
+		//printf("%s",buf);
+		msg = hpf_msg_publish((u_char *) ident, strlen((const char *)ident), (u_char *) channel, strlen((const char *)channel),(u_char *)buf,len);
 		if (write(s, (u_char *) msg, ntohl(msg->hdr.msglen)) == -1) {
 			perror("write()");
-			return -1;
+			free(buf);
+			return NULL;
 		}
 		hpf_msg_delete(msg);
-		return -1;
+		free(buf);
+		return NULL;
 		break;
 	case S_ERROR:
 		if (msg) {
 			// msg is still valid
 			if ((errmsg = calloc(1, msg->hdr.msglen - sizeof(msg->hdr))) == NULL) {
 				perror("calloc()");
-				return -1;
+				free(buf);
+				return NULL;
 			}
 			memcpy(errmsg, msg->data, msg->hdr.msglen - sizeof(msg->hdr));
 
@@ -275,16 +291,18 @@ int publish(u_char *buf) {
 	case S_TERMINATE:
 		fprintf(stderr, "terminated.\n");
 		close(s);
-		return EXIT_SUCCESS;
+		free(buf);
+		return NULL;
 	default:
 		fprintf(stderr, "unknown session state\n");
 		close(s);
-		return -1;
+		free(buf);
+		return NULL;
 	}
 
 	close(s);
-	
-	return EXIT_SUCCESS;
+	free(buf);	
+	return NULL;
 }
 
 /*

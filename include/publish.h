@@ -31,7 +31,7 @@ C_SUBSCRIBE,
 C_PUBLISH,
 C_UNKNOWN } cmd_t;
 
-int publish(u_char *buf);
+void* publish(void *buf);
 u_char *read_msg(int s);
 void readConfig(char *conf_path,char *conf_name,char *config_buff);
 char *url_encode(char *str);
