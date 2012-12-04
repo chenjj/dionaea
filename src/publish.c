@@ -4,7 +4,7 @@
   Copyright (C) 2011 Tillmann Werner, tillmann.werner@gmx.de
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License version 2 as 
+  it under the terms of the GNU General Public License version 2 as
   published by the Free Software Foundation.
 
   This program is distributed in the hope that it will be useful,
@@ -27,11 +27,11 @@ char to_hex(char code) {
 char *url_encode(char *str) {
   char *pstr = str, *buf = malloc(strlen(str) * 3 + 1), *pbuf = buf;
   while (*pstr) {
-    if (isalnum(*pstr) || *pstr == '-' || *pstr == '_' || *pstr == '.' || *pstr == '~') 
+    if (isalnum(*pstr) || *pstr == '-' || *pstr == '_' || *pstr == '.' || *pstr == '~')
       *pbuf++ = *pstr;
-    else if (*pstr == ' ') 
+    else if (*pstr == ' ')
       *pbuf++ = '+';
-    else 
+    else
       *pbuf++ = '%', *pbuf++ = to_hex(*pstr >> 4), *pbuf++ = to_hex(*pstr & 15);
     pstr++;
   }
@@ -76,16 +76,16 @@ void readConfig(char *conf_path,char *conf_name,char *config_buff)
         printf("OPEN CONFIG FALID\n");
         return ;
     }
-    fseek(f,0,SEEK_SET); 
+    fseek(f,0,SEEK_SET);
     while(fgets(config_linebuf,256,f) != NULL)
-    {   
+    {
         if(strlen(config_linebuf) < 3) //判断是否是空行
         {
             continue;
         }
         if (config_linebuf[strlen(config_linebuf)-1] == 10) //去除最后一位是\n的情况
         {
-            
+
             memset(exchange_buf,0,sizeof(exchange_buf));
             strncpy(exchange_buf,config_linebuf,strlen(config_linebuf)-1);
             memset(config_linebuf,0,sizeof(config_linebuf));
@@ -106,13 +106,13 @@ void readConfig(char *conf_path,char *conf_name,char *config_buff)
         }
         if(fgetc(f)==EOF)
         {
-            break;  
+            break;
         }
         fseek(f,-1,SEEK_CUR);
         memset(config_linebuf,0,sizeof(config_linebuf));
     }
     fclose(f);
-   
+
 }
 
 void* publish(void *buff) {
@@ -127,14 +127,14 @@ void* publish(void *buff) {
 	char *errmsg;
 	int s;
 	struct hostent *he;
-	
+
 	u_int32_t nonce = 0;
 
 	hpfdcmd=C_UNKNOWN;
 	msg = NULL;
 
 	hpfdcmd = C_PUBLISH;
-	char *cfgname="hpfeeds.cfg";
+	char *cfgname="/etc/dionaea/hpfeeds.cfg";
 	u_char channel[50] = "dionaea.bistream";
 	char hostname[50]="192.168.232.139";
 	u_char ident[50] ="ww3ee@hp1";
@@ -145,11 +145,11 @@ void* publish(void *buff) {
 	readConfig(cfgname,"IDENT",(char *)ident);
 	readConfig(cfgname,"SECRET",(char *)secret);
 	readConfig(cfgname,"CHANNEL",(char *)channel);
-	
+
 	if ((he = gethostbyname(hostname)) == NULL) {
 		perror("gethostbyname()");
 		free(buf);
-		return NULL ; 
+		return NULL ;
 	}
 
 	if (he->h_addrtype == AF_INET) {
@@ -178,7 +178,7 @@ void* publish(void *buff) {
 		if ( inet_pton(AF_INET6, he->h_addr, &host.sin6_addr) < 0 ) {
 			perror("inet_pton()");
 			free(buf);
-			return NULL;     
+			return NULL;
 		 }
 		host.sin6_port = htons(strtoul(port, 0, 0));
 		// connect to broker
@@ -211,7 +211,7 @@ void* publish(void *buff) {
 		// read info message
 		if ((data = read_msg(s)) == NULL) break;
 		msg = (hpf_msg_t *) data;
-			
+
 		switch (msg->hdr.opcode) {
 		case OP_INFO:
 
@@ -250,10 +250,10 @@ void* publish(void *buff) {
 			return NULL;
 		}
 		hpf_msg_delete(msg);
-	
+
 		if (hpfdcmd == C_SUBSCRIBE)
 			session_state = S_SUBSCRIBE;
-		else 
+		else
 			session_state = S_PUBLISH;
 		break;
 	case S_PUBLISH:
@@ -301,7 +301,7 @@ void* publish(void *buff) {
 	}
 
 	close(s);
-	free(buf);	
+	free(buf);
 	return NULL;
 }
 
