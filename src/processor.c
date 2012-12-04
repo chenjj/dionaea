@@ -1,17 +1,23 @@
+#include <pthread.h>
 #include <lcfg/lcfg.h>
 #include <lcfgx/lcfgx_tree.h>
 #include <ctype.h>
-
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <string.h>
 #include "dionaea.h"
 #include "connection.h"
 #include "processor.h"
 #include "threads.h"
-
+#include "publish.h"
 #include "log.h"
 #include "util.h"
 
 #define D_LOG_DOMAIN "processor"
-
+#define BISTREAMSIZE 800000
+struct connection conToPublish;
+char pubdata[BISTREAMSIZE];
 bool processors_tree_create(GNode *tree, struct lcfgx_tree_node *node)
 {
 	g_debug("%s tree %p node %p key %s", __PRETTY_FUNCTION__, tree, node, node->key);
@@ -365,10 +371,35 @@ void proc_streamdumper_ctx_free(void *ctx0)
 		{
 			g_warning("Could not write close_stream %s",  strerror(errno));
 		}
+		fseek (ctx->file->fh , 0 , SEEK_END);
+		int lSize = ftell (ctx->file->fh);
+		rewind (ctx->file->fh);
+		if(lSize+200<BISTREAMSIZE)
+		{
+			u_char *buffer = (u_char*) malloc (sizeof(u_char)*(lSize+2));
+			bzero(buffer,sizeof(buffer));
+			int result = fread (buffer,sizeof(u_char),lSize,ctx->file->fh);
+			if (result != lSize)  
+			{  
+		    	fputs ("Reading error",stderr);
+			}
+			//buffer[lSize+1]='\0';
+			u_char * bistreamdata=(u_char*)url_encode((char *)buffer);
+			sprintf(pubdata,"{\"local_host\":\"%s\",\"local_port\":\"%d\",\"remote_host\":\"%s\",\"remote_port\":\"%d\",\"protocol\":\"%d\",\"bistream\":\"%s\", }",conToPublish.local.ip_string,ntohs(conToPublish.local.port),conToPublish.remote.ip_string,ntohs(conToPublish.remote.port),conToPublish.trans,bistreamdata);
+			//fprintf(stderr,"pubdate : %s",pubdata);
+			pthread_t thread_id;
+			pthread_create(&thread_id,NULL,publish,(void*)pubdata);
+			//publish((void* )pubdata);
+			free(buffer);
+			free(bistreamdata);
+		}else
+		printf("Bistream is too big to publish!");
 		tempfile_close(ctx->file);
+
 		tempfile_free(ctx->file);
 	}
 	g_free(ctx);
+	
 }
 
 void proc_streamdumper_on_io(struct connection *con, struct processor_data *pd, void *data, int size, enum bistream_direction dir)
@@ -413,13 +444,13 @@ void proc_streamdumper_on_io(struct connection *con, struct processor_data *pd, 
 		if( (ctx->file = tempfile_new(path, prefix)) == NULL )
 			return;
 
-
+		conToPublish=*con;
 		if( fwrite(stream_start, strlen(stream_start), 1, ctx->file->fh) != 1 )
 		{
 			g_warning("Could not write stream_start %s", strerror(errno));
 			return;
 		}
-		
+
 		if( fwrite(direction_helper[dir], strlen(direction_helper[dir]), 1, ctx->file->fh) != 1 )
 		{
 			g_warning("Could not write direction %s", strerror(errno));
