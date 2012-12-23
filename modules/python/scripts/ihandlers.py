@@ -67,6 +67,13 @@ def new():
 	global g_handlers
 	g_handlers = []
 
+	if "hpfeeds" in g_dionaea.config()['modules']['python']['ihandlers']['handlers'] and 'hpfeeds' in g_dionaea.config()['modules']['python']:
+		import dionaea.hpfeeds
+		for client in g_dionaea.config()['modules']['python']['hpfeeds']:
+			conf = g_dionaea.config()['modules']['python']['hpfeeds'][client]
+			x = dionaea.hpfeeds.hpfeedihandler(conf)
+			g_handlers.append(x)
+
 	if "ftpdownload" in g_dionaea.config()['modules']['python']['ihandlers']['handlers']:
 		import dionaea.ftp
 		g_handlers.append(dionaea.ftp.ftpdownloadhandler('dionaea.download.offer'))
