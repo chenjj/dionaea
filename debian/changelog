@@ -1,8 +1,14 @@
+dionaea-nisl (0.1.0.3-0.6) precise; urgency=low
+
+  * Merge and add untracked files
+
+ -- Xiaoyu Liu (Vury Leo) <i@vuryleo.com>  Tue, 25 Dec 2012 15:22:10 +0800
+
 dionaea-nisl (0.1.0.3-0.5) precise; urgency=low
 
   * Move cfg to position
 
- -- Xiaoyu Liu (Vury Leo) <i@vuryleo.com>  Sun, 23 Dec 2012 23:01:22 +0800
+ -- Xiaoyu Liu (Vury Leo) <i@vuryleo.com>  Mon, 24 Dec 2012 23:01:22 +0800
 
 dionaea-nisl (0.1.0.3-0.4) precise; urgency=low
 

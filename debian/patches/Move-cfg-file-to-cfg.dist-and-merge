@@ -17,9 +17,9 @@ Forwarded: <no|not-needed|url proving that it has been forwarded>
 Reviewed-By: <name and email of someone who approved the patch>
 Last-Update: <YYYY-MM-DD>
 
---- dionaea-nisl-0.1.0.3.orig/Makefile.in
-+++ dionaea-nisl-0.1.0.3/Makefile.in
-@@ -803,10 +803,11 @@ install-data-local:
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -803,10 +803,11 @@
  	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/dionaea/bistreams/
  	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/dionaea/wwwroot/
  	$(INSTALL_DATA) $(srcdir)/conf/dionaea.conf.dist $(DESTDIR)$(sysconfdir)/dionaea/dionaea.conf.dist;
@@ -31,27 +31,27 @@ Last-Update: <YYYY-MM-DD>
 +		$(INSTALL_DATA) $(srcdir)/conf/hpfeeds.cfg.dist $(DESTDIR)$(srcdir)/dionaea/hpfeeds.cfg
  	fi
  	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/log
-
---- dionaea-nisl-0.1.0.3.orig/hpfeeds/hpfeeds.py
-+++ dionaea-nisl-0.1.0.3/hpfeeds/hpfeeds.py
-@@ -45,6 +45,7 @@ logger.setLevel(logging.DEBUG)
+ 
+--- a/hpfeeds/hpfeeds.py
++++ b/hpfeeds/hpfeeds.py
+@@ -45,6 +45,7 @@
  #logger.critical = DEBUGPERF
-
+ 
  BUFSIZ = 16384
 +PUBMAXSIZE = 5*(1024*2)
-
+ 
  OP_ERROR        = 0
  OP_INFO         = 1
-@@ -52,7 +53,7 @@ OP_AUTH         = 2
+@@ -52,7 +53,7 @@
  OP_PUBLISH      = 3
  OP_SUBSCRIBE    = 4
-
+ 
 -MAXBUF = 1024**2
 +MAXBUF = 1024**2+PUBMAXSIZE
  SIZES = {
  	OP_ERROR: 5+MAXBUF,
  	OP_INFO: 5+256+20,
-@@ -71,7 +72,7 @@ OFFERCHAN = 'dionaea.offer'
+@@ -71,7 +72,7 @@
  EMU_SERVICESCHAN = 'dionaea.emu_services'
  MSSQL_COMMANDSCHAN = 'dionaea.mssql_command'
  MSSQL_FINGERPRINTSCHAN = 'dionaea.mssql_fingerprint'
@@ -59,14 +59,14 @@ Last-Update: <YYYY-MM-DD>
 +MSSQL_LOGINSCHAN = 'dionaea.mssql_logins'
  DECRPCBINDCHAN = 'dionaea.dcerpcbind'
  P0FCHAN = 'dionaea.p0f'
-
-@@ -187,17 +188,20 @@ class hpclient(connection):
+ 
+@@ -187,17 +188,20 @@
  		if not self.filehandle:
  			self.sendfileheader(filepath)
  			self.sendfiledata()
 +			self.filehandle = None
  		else: self.sendfiles.append(filepath)
-
+ 
  	def sendfileheader(self, filepath):
  		self.filehandle = open(filepath, 'rb')
  		fsize = os.stat(filepath).st_size
@@ -75,14 +75,14 @@ Last-Update: <YYYY-MM-DD>
  		headc = strpack8(self.ident) + strpack8(UNIQUECHAN)
  		headh = struct.pack('!iB', 5+len(headc)+fsize, OP_PUBLISH)
  		self.send(headh + headc)
-
+ 
  	def sendfiledata(self):
 -		tmp = self.filehandle.read(BUFSIZ)
 +		tmp = self.filehandle.read(PUBMAXSIZE)
  		if not tmp:
  			if self.sendfiles:
  				fp = self.sendfiles.pop(0)
-@@ -333,11 +337,16 @@ class hpfeedihandler(ihandler):
+@@ -333,11 +337,16 @@
  		if not hasattr(i, 'con') or not self.client.connected: return
  		logger.debug('hash complete, publishing md5 {0}, path {1}'.format(i.md5hash, i.file))
  		try:
@@ -93,7 +93,7 @@ Last-Update: <YYYY-MM-DD>
 +			sha512 = hashlib.sha512(fdata).hexdigest()
 +			fmd5 = hashlib.md5(fdata).hexdigest()
 +			f.close()
- 			self.client.publish(CAPTURECHAN, remote_host=i.con.remote.host,
+ 			self.client.publish(CAPTURECHAN, remote_host=i.con.remote.host, 
  				remote_port=str(i.con.remote.port), local_host=self._ownip(i),
 -				local_port=str(i.con.local.port), md5=i.md5hash, sha512=sha512,
 -				url=i.url
@@ -102,7 +102,7 @@ Last-Update: <YYYY-MM-DD>
  			)
  		except Exception as e:
  			logger.warn('exception when publishing: {0}'.format(e))
-@@ -348,7 +357,7 @@ class hpfeedihandler(ihandler):
+@@ -348,7 +357,7 @@
  		try:
  			self.client.publish(DCECHAN, uuid=i.uuid, opnum=i.opnum,
  				remote_host=i.con.remote.host, remote_port=str(i.con.remote.port),
@@ -111,7 +111,7 @@ Last-Update: <YYYY-MM-DD>
  			)
  		except Exception as e:
  			logger.warn('exception when publishing: {0}'.format(e))
-@@ -357,7 +366,8 @@ class hpfeedihandler(ihandler):
+@@ -357,7 +366,8 @@
  		if not hasattr(icd, 'con') or not self.client.connected: return
  		logger.debug('emu profile, publishing length {0}'.format(len(icd.profile)))
  		try:
@@ -120,8 +120,8 @@ Last-Update: <YYYY-MM-DD>
 +				local_host=self._ownip(icd), local_port=str(icd.con.local.port),connection_transport=icd.con.transport,)
  		except Exception as e:
  			logger.warn('exception when publishing: {0}'.format(e))
-
-@@ -378,7 +388,7 @@ class hpfeedihandler(ihandler):
+ 
+@@ -378,7 +388,7 @@
  		logger.debug('offer, publishing offer_url {0}'.format(str(icd.url)))
  		try:
  			self.client.publish(OFFERCHAN, offer_url=icd.url,remote_host=icd.con.remote.host, remote_port=str(icd.con.remote.port),
@@ -129,8 +129,8 @@ Last-Update: <YYYY-MM-DD>
 +				local_host=icd.con.local.host, local_port=str(icd.con.local.port),connection_transport=icd.con.transport,)
  		except Exception as e:
  			logger.warn('exception when publishing: {0}'.format(e))
-
-@@ -387,7 +397,7 @@ class hpfeedihandler(ihandler):
+ 
+@@ -387,7 +397,7 @@
  		logger.debug('emu_services, publishing...')
  		try:
  			self.client.publish(EMU_SERVICECHAN, emu_service_url="bindshell://"+str(icd.port),remote_host=icd.con.remote.host, remote_port=str(icd.con.remote.port),
@@ -138,8 +138,8 @@ Last-Update: <YYYY-MM-DD>
 +				local_host=icd.con.local.host, local_port=str(icd.con.local.port),connection_transport=icd.con.transport,)
  		except Exception as e:
  			logger.warn('exception when publishing: {0}'.format(e))
-
-@@ -396,7 +406,7 @@ class hpfeedihandler(ihandler):
+ 				
+@@ -396,7 +406,7 @@
  		logger.debug('emu_services, publishing...')
  		try:
  			self.client.publish(EMU_SERVICESCHAN, emu_service_url="connectbackshell://"+str(icd.host)+":"+str(icd.port),remote_host=icd.con.remote.host, remote_port=str(icd.con.remote.port),
@@ -147,8 +147,8 @@ Last-Update: <YYYY-MM-DD>
 +				local_host=icd.con.local.host, local_port=str(icd.con.local.port),connection_transport=icd.con.transport,)
  		except Exception as e:
  			logger.warn('exception when publishing: {0}'.format(e))
-
-@@ -405,7 +415,7 @@ class hpfeedihandler(ihandler):
+ 
+@@ -405,7 +415,7 @@
  		logger.debug('p0f, publishing...')
  		try:
  			self.client.publish(P0FCHAN, p0f_genre=icd.genre, p0f_link=icd.link, p0f_detail=icd.detail, p0f_uptime=icd.uptime, p0f_tos=icd.tos, p0f_dist=icd.dist, p0f_nat=icd.nat, p0f_fw=icd.fw,remote_host=icd.con.remote.host, remote_port=str(icd.con.remote.port),
@@ -156,8 +156,8 @@ Last-Update: <YYYY-MM-DD>
 +				local_host=icd.con.local.host, local_port=str(icd.con.local.port),connection_transport=icd.con.transport,)
  		except Exception as e:
  			logger.warn('exception when publishing: {0}'.format(e))
-
-@@ -414,7 +424,7 @@ class hpfeedihandler(ihandler):
+ 
+@@ -414,7 +424,7 @@
  		logger.debug('dcerpc_bind, publishing dcerpcbind_transfersyntax {0}'.format(icd.transfersyntax))
  		try:
  			self.client.publish(DECRPCBINDCHAN, dcerpcbind_uuid=icd.uuid, dcerpcbind_transfersyntax=icd.transfersyntax,remote_host=icd.con.remote.host, remote_port=str(icd.con.remote.port),
@@ -165,8 +165,8 @@ Last-Update: <YYYY-MM-DD>
 +				local_host=icd.con.local.host, local_port=str(icd.con.local.port),connection_transport=icd.con.transport,)
  		except Exception as e:
  			logger.warn('exception when publishing: {0}'.format(e))
-
-@@ -422,10 +432,7 @@ class hpfeedihandler(ihandler):
+ 
+@@ -422,10 +432,7 @@
  		if not hasattr(icd, 'con') or not self.client.connected: return
  		logger.debug('mssql_login, publishing...')
  		try:
@@ -177,17 +177,17 @@ Last-Update: <YYYY-MM-DD>
 +			self.client.publish(MSSQL_LOGINSCHAN, login_username=icd.username, login_password=icd.password,remote_host=icd.con.remote.host, remote_port=str(icd.con.remote.port),local_host=icd.con.local.host, local_port=str(icd.con.local.port),connection_transport=icd.con.transport,mssql_fingerprint_hostname=icd.hostname, mssql_fingerprint_appname=icd.appname, mssql_fingerprint_cltintname=icd.cltintname,)
  		except Exception as e:
  			logger.warn('exception when publishing: {0}'.format(e))
-
-@@ -434,6 +441,6 @@ class hpfeedihandler(ihandler):
+ 
+@@ -434,6 +441,6 @@
  		logger.debug('mssql_cmd, publishing...')
  		try:
  			self.client.publish(MSSQL_COMMANDSCHAN, mssql_command_statu=icd.status, mssql_command_cmd=icd.cmd,remote_host=icd.con.remote.host, remote_port=str(icd.con.remote.port),
 -				local_host=icd.con.local.host, local_port=str(icd.con.local.port),)
 +				local_host=icd.con.local.host, local_port=str(icd.con.local.port),connection_transport=icd.con.transport,)
  		except Exception as e:
- 			logger.warn('exception when publishing: {0}'.format(e))
+ 			logger.warn('exception when publishing: {0}'.format(e))	
 --- /dev/null
-+++ dionaea-nisl-0.1.0.3/conf/hpfeeds.cfg.dist
++++ b/conf/hpfeeds.cfg.dist
 @@ -0,0 +1,6 @@
 +#Notice:there is no space around  =
 +HOST=1.1.1.1
@@ -195,8 +195,8 @@ Last-Update: <YYYY-MM-DD>
 +IDENT=IDENT
 +SECRET=SECRET
 +CHANNEL=dionaea.bistream
---- dionaea-nisl-0.1.0.3.orig/conf/dionaea.conf.dist
-+++ dionaea-nisl-0.1.0.3/conf/dionaea.conf.dist
+--- a/conf/dionaea.conf.dist
++++ b/conf/dionaea.conf.dist
 @@ -1,28 +1,28 @@
  logging = {
  	default = {
@@ -206,7 +206,7 @@ Last-Update: <YYYY-MM-DD>
  		levels = "all"
  		domains = "*"
      }
-
+ 
  	errors = {
 -		// file not starting with / is taken relative to LOCALESTATEDIR (e.g. /opt/dionaea/var)
 +		// file not starting with / is taken relative to LOCALESTATEDIR (e.g. //var)
@@ -215,10 +215,10 @@ Last-Update: <YYYY-MM-DD>
  		domains = "*"
  	}
  }
-
--processors =
--{
--	filter-emu =
+ 
+-processors = 
+-{ 
+-	filter-emu = 
 +processors =
 +{
 +	filter-emu =
@@ -227,33 +227,33 @@ Last-Update: <YYYY-MM-DD>
  			allow = [{ protocol = ["smbd","epmapper","nfqmirrord","mssqld"] }]
  		}
  		next = {
--			emu =
+-			emu = 
 +			emu =
  			{
  				config = {
  					emulation = {
-@@ -38,9 +38,9 @@ processors =
+@@ -38,9 +38,9 @@
  						}
-
+ 
  						/**
--						 * api default arguments for development
+-						 * api default arguments for development 
 +						 * api default arguments for development
  						 * disabled by default
--						 * not working yet
+-						 * not working yet 
 +						 * not working yet
  						 */
  						api = {
  							connect = {
-@@ -54,7 +54,7 @@ processors =
+@@ -54,7 +54,7 @@
  		}
  	}
-
--	filter-streamdumper =
+ 
+-	filter-streamdumper = 
 +	filter-streamdumper =
  	{
  		config = {
  			allow = [
-@@ -68,13 +68,13 @@ processors =
+@@ -68,13 +68,13 @@
  		next = {
  			streamdumper = {
  				config = {
@@ -263,64 +263,64 @@ Last-Update: <YYYY-MM-DD>
  			}
  		}
  	}
-
--/*	filter-sessions =
+ 
+-/*	filter-sessions = 
 +/*	filter-sessions =
  	{
  		config = {
  			allow = [ { protocol = ["ftpctrl","remoteshell"] } ]
-@@ -90,23 +90,23 @@ processors =
-
+@@ -90,23 +90,23 @@
+ 
  downloads =
  {
 -	dir = "var/dionaea/binaries"
 +	dir = "/var/dionaea/binaries"
  	tmp-suffix = ".tmp"
  }
-
+ 
  bistreams =
  {
--	python =
+-	python = 
 +	python =
  	{
 -		dir = "var/dionaea/bistreams"
 +		dir = "/var/dionaea/bistreams"
  	}
  }
-
--submit =
+ 
+-submit = 
 +submit =
  {
  	defaults = {
  		urls = ["http://anubis.iseclab.org/nepenthes_action.php",
--				"http://onlineanalyzer.norman.com/nepenthes_upload.php",
+-				"http://onlineanalyzer.norman.com/nepenthes_upload.php", 
 +				"http://onlineanalyzer.norman.com/nepenthes_upload.php",
  				"http://luigi.informatik.uni-mannheim.de/submit.php?action=verify"]
  		email = "nepenthesdev@gmail.com"
  		file_fieldname = "upfile"
-@@ -135,7 +135,7 @@ submit =
+@@ -135,7 +135,7 @@
  */
-
+ 
  /*
--	yoursection =
+-	yoursection = 
 +	yoursection =
  	{
  		urls = ["http://127.0.0.1/submit"]
  		email = "yourmail"
-@@ -145,7 +145,7 @@ submit =
+@@ -145,7 +145,7 @@
  */
  }
-
--listen =
+ 
+-listen = 
 +listen =
  {
  	/* basically we have 3 modes
  	   - getifaddrs - auto
-@@ -159,17 +159,23 @@ listen =
+@@ -159,17 +159,23 @@
  		 will do the trick
  		 if you want to throw in ipv6 support as well ...
  		 addrs = { eth0 = ["::"] }
--		 note: ipv6 does not work with surfids yet,
+-		 note: ipv6 does not work with surfids yet, 
 +		 note: ipv6 does not work with surfids yet,
  		 as ipv6 addresses are mapped to ipv4 and surfids fails to retrieve the sensor id for ::ffff:1.2.3.4
 +	   - nl, will require a list of interfaces
@@ -330,70 +330,70 @@ Last-Update: <YYYY-MM-DD>
 +		 nl will use the kernel netlink interface to figure out which addresses exist
 +		 at runtime, and start/stop services dynamically per address per interface
  	*/
--
+-	     
 +
  	mode = "getifaddrs"
  	addrs = { eth0 = ["::"] }
  }
-
+ 
  modules = {
-
--	curl =
+ 
+-	curl = 
 +	curl =
  	{
  		protocol = "http"
  	}
-@@ -179,23 +185,23 @@ modules = {
+@@ -179,23 +185,23 @@
  		profile = "1"
  	}
-
--	pcap =
+ 
+-	pcap = 
 +	pcap =
  	{
--		/**
--       	 * libpcap 1.0.0
--       	 *
--       	 * "Arithmetic expression against transport layer headers, like
--       	 * tcp[0], does not work  against  IPv6  packets. It  only looks
+-		/** 
+-       	 * libpcap 1.0.0 
+-       	 *  
+-       	 * "Arithmetic expression against transport layer headers, like 
+-       	 * tcp[0], does not work  against  IPv6  packets. It  only looks 
 +		/**
 +       	 * libpcap 1.0.0
 +       	 *
 +       	 * "Arithmetic expression against transport layer headers, like
 +       	 * tcp[0], does not work  against  IPv6  packets. It  only looks
         	 * at IPv4 packets."
--       	 *
--       	 * As a consequence, the default filter can not match
+-       	 * 
+-       	 * As a consequence, the default filter can not match 
 +       	 *
 +       	 * As a consequence, the default filter can not match
         	 * ipv6 tcp rst packets.
--       	 *
+-       	 * 
 +       	 *
         	 * If you want to go for rejected ipv6, remove the tcp matching part of the filter
--       	 * The code is capable to checking the tcp-rst flag and seq number itself, but
+-       	 * The code is capable to checking the tcp-rst flag and seq number itself, but 
 +       	 * The code is capable to checking the tcp-rst flag and seq number itself, but
         	 * matching every packet in userspace is expensive.
         	 * Therefore you'll have to hack the code if you want to track ipv6 rejected connections
--       	 *
+-       	 * 
 +       	 *
  		 * Format is IFACE = { addrs = MODE }
  		 * currently mode is ignored
         	 */
-@@ -206,9 +212,9 @@ modules = {
+@@ -206,9 +212,9 @@
  	}
-
+ 
  	nfq =
--	{
--		/**
--		 * queue has to be the nfqueue num
+-	{ 
+-		/** 
+-		 * queue has to be the nfqueue num 
 +	{
 +		/**
 +		 * queue has to be the nfqueue num
  		 * refer to http://dionaea.carnivore.it/#nfq_python
  		 * if you do not specify a queue-num with iptables, 0 is the default
  		 */
-@@ -216,6 +222,16 @@ modules = {
+@@ -216,6 +222,16 @@
  	}
-
+ 
  	python = {
 +		hpfeeds = {
 +			hp1 = {
@@ -408,23 +408,23 @@ Last-Update: <YYYY-MM-DD>
  		// default expands to PREFIX/lib/dionaea/python/
  		// ordering is granted
  		// useful for development
-@@ -227,13 +243,13 @@ modules = {
+@@ -227,13 +243,13 @@
  					"services",
  					"ihandlers"]
  		ftp = {
 -			root = "var/dionaea/wwwroot"
 +			root = "/var/dionaea/wwwroot"
-
+ 
  			/* ftp client section
  			 */
-
+ 
  			/* ports for active ftp
--			 * string indicating a range
+-			 * string indicating a range 
 +			 * string indicating a range
  			 */
  			active-ports = "63001-64000"
-
-@@ -244,10 +260,10 @@ modules = {
+ 
+@@ -244,10 +260,10 @@
  			active-host = "0.0.0.0"
  		}
  		tftp = {
@@ -437,7 +437,7 @@ Last-Update: <YYYY-MM-DD>
  			max-request-size = "32768" // maximum size in kbytes of the request (32MB)
  		}
  		sip = {
-@@ -260,7 +276,7 @@ modules = {
+@@ -260,7 +276,7 @@
  			tls = {
  				port = "5061"
  			}
@@ -446,16 +446,16 @@ Last-Update: <YYYY-MM-DD>
  			rtp = {
  				enable = "yes"
  				/* how to dump the rtp stream
-@@ -269,7 +285,7 @@ modules = {
+@@ -269,7 +285,7 @@
  				mode = ["bistream", "pcap"]
-
+ 
  				pcap = {
 -					path = "var/dionaea/rtp/{personality}/%Y-%m-%d/"
 +					path = "/var/dionaea/rtp/{personality}/%Y-%m-%d/"
  					filename = "%H:%M:%S_{remote_host}_{remote_port}_in.pcap"
  				}
  			}
-@@ -300,7 +316,7 @@ modules = {
+@@ -300,7 +316,7 @@
  				play-hello = {
  					do = "play"
  					params = {
@@ -464,7 +464,7 @@ Last-Update: <YYYY-MM-DD>
  					}
  				}
  			}
-@@ -315,7 +331,7 @@ modules = {
+@@ -315,7 +331,7 @@
  		}
  		virustotal = {
  			apikey = "........." // grab it from your virustotal account at My account -> Inbox -> Public API
@@ -473,7 +473,7 @@ Last-Update: <YYYY-MM-DD>
  		}
  		mwserv = {			// ask your mwserv backend provider for needed values
  			url = "" 		// the url to send the submission requests to
-@@ -347,7 +363,7 @@ modules = {
+@@ -347,7 +363,7 @@
  		logsql = {
  			mode = "sqlite" // so far there is only sqlite
  			sqlite = {
@@ -482,40 +482,40 @@ Last-Update: <YYYY-MM-DD>
  			}
  		}
  		logxmpp = {
-@@ -359,7 +375,7 @@ modules = {
+@@ -359,7 +375,7 @@
  				server = "sensors.carnivore.it"
-
+ 
  				/**
--				 * as dionaea does not support starttls (xmpp on port 5223),
+-				 * as dionaea does not support starttls (xmpp on port 5223), 
 +				 * as dionaea does not support starttls (xmpp on port 5223),
  				 * we rely on 'legacy ssl' for the xmpp connection (port 5222)
  				 */
  				port = "5223"
-@@ -376,16 +392,16 @@ modules = {
+@@ -376,16 +392,16 @@
  				 * the default resource is a random string of 8 chars
  				 */
  				// resource = "theresource"
--				config =
+-				config = 
 +				config =
  				{
  					/**
  					 * this defines a muc channel
  					 */
--					anon-events =
+-					anon-events = 
 +					anon-events =
  					{
  						/**
  						 * incidents matching these events will get relayed to the channel
--						 */
+-						 */ 
 +						 */
  						events = ["^dionaea\x5c.connection\x5c..*",
  									"^dionaea\x5c.modules\x5c.python\x5c.smb.dcerpc\x5c.*",
  									"^dionaea\x5c.download\x5c.offer$",
-@@ -403,18 +419,18 @@ modules = {
+@@ -403,18 +419,18 @@
  					}
-
+ 
  					anon-files =
--					{
+-					{ 
 +					{
  						events = ["^dionaea\x5c.download\x5c.complete\x5c.unique"]
  					}
@@ -523,45 +523,45 @@ Last-Update: <YYYY-MM-DD>
  			}
  		}
  		nfq = {
--			/**
+-			/** 
 +			/**
  			 * nfq can intercept incoming tcp connections during the tcp handshake
--			 * giving your honeypot the possibility to provide service on
+-			 * giving your honeypot the possibility to provide service on  
 +			 * giving your honeypot the possibility to provide service on
  			 * ports which are not served by default.
--			 * refer to the documentation (http://dionaea.carnivore.it/#nfq_python)
+-			 * refer to the documentation (http://dionaea.carnivore.it/#nfq_python) 
 +			 * refer to the documentation (http://dionaea.carnivore.it/#nfq_python)
  			 * BEFORE using this
  			 */
-
-@@ -440,19 +456,19 @@ modules = {
+ 
+@@ -440,19 +456,19 @@
  		}
  		p0f = {
  			/**
--			 * start p0f with
+-			 * start p0f with 
 +			 * start p0f with
  			 * sudo p0f -i any -u root -Q /tmp/p0f.sock -q -l
  			 */
  			path = "un:///tmp/p0f.sock"
  		}
-
+ 
  		fail2ban = {
 -			downloads = "var/dionaea/downloads.f2b"
 -			offers = "var/dionaea/offers.f2b"
 +			downloads = "/var/dionaea/downloads.f2b"
 +			offers = "/var/dionaea/offers.f2b"
  		}
-
+ 
  		ihandlers = {
--			handlers = ["ftpdownload", "tftpdownload", "emuprofile", "cmdshell", "store", "uniquedownload",
+-			handlers = ["ftpdownload", "tftpdownload", "emuprofile", "cmdshell", "store", "uniquedownload", 
 +			handlers = ["ftpdownload", "tftpdownload", "emuprofile", "cmdshell", "store", "uniquedownload", "hpfeeds",
  			"logsql",
  //			"virustotal",
  //			"mwserv",
-@@ -471,8 +487,15 @@ modules = {
-
+@@ -471,8 +487,15 @@
+ 
  	}
-
+ 
 +	nl =
 +	{
 +		lookup_ethernet_addr = "no" // set to yes in case you are interested in the mac address  of the remote (only works for lan)
@@ -570,25 +570,25 @@ Last-Update: <YYYY-MM-DD>
 +
 +
  	/* nc is a test module */
--/*	nc =
+-/*	nc = 
 +/*	nc =
  	{
  		services = [
  			{
-@@ -526,7 +549,7 @@ modules = {
+@@ -526,7 +549,7 @@
  					listen = "15"
  					connect = "15"
  				}
--			},
+-			},			
 +			},
  			{
  				proto = "redir"
  				type = "tls"
-@@ -640,7 +663,7 @@ modules = {
+@@ -640,7 +663,7 @@
  					connect = "15"
  					reconnect = "5"
  				}
--			},
+-			}, 
 +			},
  			{
  				proto = "source"
