@@ -803,10 +803,11 @@ install-data-local:
 	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/dionaea/bistreams/
 	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/dionaea/wwwroot/
 	$(INSTALL_DATA) $(srcdir)/conf/dionaea.conf.dist $(DESTDIR)$(sysconfdir)/dionaea/dionaea.conf.dist;
+	$(INSTALL_DATA) $(srcdir)/conf/hpfeeds.cfg.dist $(DESTDIR)$(sysconfdir)/dionaea/hpfeeds.cfg.dist;
 	if [ ! -e $(DESTDIR)$(sysconfdir)/dionaea/dionaea.conf ]; then \
 		$(INSTALL_DATA) $(srcdir)/conf/dionaea.conf.dist $(DESTDIR)$(sysconfdir)/dionaea/dionaea.conf; \
 	if [ ! -e $(DESTDIR)$(sysconfdir)/conf/hpfeeds.cfg ]; then \
-		$(INSTALL_DATA) $(srcdir)/conf/hpfeeds.cfg $(DESTDIR)$(srcdir)/dionaea/hpfeeds.cfg
+		$(INSTALL_DATA) $(srcdir)/conf/hpfeeds.cfg.dist $(DESTDIR)$(srcdir)/dionaea/hpfeeds.cfg
 	fi
 	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/log
 
