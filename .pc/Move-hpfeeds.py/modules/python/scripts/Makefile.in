@@ -229,7 +229,7 @@ PYSCRIPTS = sip/__init__.py sip/extras.py sip/rfc2396.py \
 	smb/include/ntlmfields.py smb/include/gssapifields.py \
 	smb/__init__.py smb/smb.py smb/rpcservices.py test.py \
 	mirror.py nfq.py http.py log.py logsql.py p0f.py cmd.py emu.py \
-	ihandlers.py hpfeeds.py util.py store.py surfids.py virustotal.py \
+	ihandlers.py util.py store.py surfids.py virustotal.py \
 	mwserv.py submit_http.py ndrlib.py logxmpp.py fail2ban.py \
 	__init__.py mssql/__init__.py mssql/mssql.py \
 	mssql/include/tds.py mssql/include/__init__.py \
