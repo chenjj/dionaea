@@ -6,3 +6,4 @@ Test
 remove-log
 Merge
 Add-cfg-files
+Move-cfg-file-to-cfg.dist-and-merge
