@@ -45,6 +45,7 @@ logger.setLevel(logging.DEBUG)
 #logger.critical = DEBUGPERF
 
 BUFSIZ = 16384
+PUBMAXSIZE = 5*(1024*2)
 
 OP_ERROR        = 0
 OP_INFO         = 1
@@ -52,7 +53,7 @@ OP_AUTH         = 2
 OP_PUBLISH      = 3
 OP_SUBSCRIBE    = 4
 
-MAXBUF = 1024**2
+MAXBUF = 1024**2+PUBMAXSIZE
 SIZES = {
 	OP_ERROR: 5+MAXBUF,
 	OP_INFO: 5+256+20,
@@ -71,7 +72,7 @@ OFFERCHAN = 'dionaea.offer'
 EMU_SERVICESCHAN = 'dionaea.emu_services'
 MSSQL_COMMANDSCHAN = 'dionaea.mssql_command'
 MSSQL_FINGERPRINTSCHAN = 'dionaea.mssql_fingerprint'
-LOGINSCHAN = 'dionaea.logins'
+MSSQL_LOGINSCHAN = 'dionaea.mssql_logins'
 DECRPCBINDCHAN = 'dionaea.dcerpcbind'
 P0FCHAN = 'dionaea.p0f'
 
@@ -187,17 +188,20 @@ class hpclient(connection):
 		if not self.filehandle:
 			self.sendfileheader(filepath)
 			self.sendfiledata()
+			self.filehandle = None
 		else: self.sendfiles.append(filepath)
 
 	def sendfileheader(self, filepath):
 		self.filehandle = open(filepath, 'rb')
 		fsize = os.stat(filepath).st_size
+		if fsize > PUBMAXSIZE:
+			fsize = PUBMAXSIZE
 		headc = strpack8(self.ident) + strpack8(UNIQUECHAN)
 		headh = struct.pack('!iB', 5+len(headc)+fsize, OP_PUBLISH)
 		self.send(headh + headc)
 
 	def sendfiledata(self):
-		tmp = self.filehandle.read(BUFSIZ)
+		tmp = self.filehandle.read(PUBMAXSIZE)
 		if not tmp:
 			if self.sendfiles:
 				fp = self.sendfiles.pop(0)
@@ -333,11 +337,16 @@ class hpfeedihandler(ihandler):
 		if not hasattr(i, 'con') or not self.client.connected: return
 		logger.debug('hash complete, publishing md5 {0}, path {1}'.format(i.md5hash, i.file))
 		try:
-			sha512 = sha512file(i.file)
+			f = open(i.file,'rb')
+			fdata = f.read(PUBMAXSIZE)
+			sha1 = hashlib.sha1(fdata).hexdigest()
+			sha512 = hashlib.sha512(fdata).hexdigest()
+			fmd5 = hashlib.md5(fdata).hexdigest()
+			f.close()
 			self.client.publish(CAPTURECHAN, remote_host=i.con.remote.host, 
 				remote_port=str(i.con.remote.port), local_host=self._ownip(i),
-				local_port=str(i.con.local.port), md5=i.md5hash, sha512=sha512,
-				url=i.url
+				local_port=str(i.con.local.port), md5=fmd5, sha512=sha512,
+				url=i.url,sha1=sha1,connection_transport=i.con.transport,
 			)
 		except Exception as e:
 			logger.warn('exception when publishing: {0}'.format(e))
@@ -348,7 +357,7 @@ class hpfeedihandler(ihandler):
 		try:
 			self.client.publish(DCECHAN, uuid=i.uuid, opnum=i.opnum,
 				remote_host=i.con.remote.host, remote_port=str(i.con.remote.port),
-				local_host=self._ownip(i), local_port=str(i.con.local.port),
+				local_host=self._ownip(i), local_port=str(i.con.local.port),connection_transport=i.con.transport,
 			)
 		except Exception as e:
 			logger.warn('exception when publishing: {0}'.format(e))
@@ -357,7 +366,8 @@ class hpfeedihandler(ihandler):
 		if not hasattr(icd, 'con') or not self.client.connected: return
 		logger.debug('emu profile, publishing length {0}'.format(len(icd.profile)))
 		try:
-			self.client.publish(SCPROFCHAN, profile=icd.profile)
+			self.client.publish(SCPROFCHAN, profile=icd.profile,remote_host=icd.con.remote.host, remote_port=str(icd.con.remote.port),
+				local_host=self._ownip(icd), local_port=str(icd.con.local.port),connection_transport=icd.con.transport,)
 		except Exception as e:
 			logger.warn('exception when publishing: {0}'.format(e))
 
@@ -378,7 +388,7 @@ class hpfeedihandler(ihandler):
 		logger.debug('offer, publishing offer_url {0}'.format(str(icd.url)))
 		try:
 			self.client.publish(OFFERCHAN, offer_url=icd.url,remote_host=icd.con.remote.host, remote_port=str(icd.con.remote.port),
-				local_host=icd.con.local.host, local_port=str(icd.con.local.port),)
+				local_host=icd.con.local.host, local_port=str(icd.con.local.port),connection_transport=icd.con.transport,)
 		except Exception as e:
 			logger.warn('exception when publishing: {0}'.format(e))
 
@@ -387,7 +397,7 @@ class hpfeedihandler(ihandler):
 		logger.debug('emu_services, publishing...')
 		try:
 			self.client.publish(EMU_SERVICECHAN, emu_service_url="bindshell://"+str(icd.port),remote_host=icd.con.remote.host, remote_port=str(icd.con.remote.port),
-				local_host=icd.con.local.host, local_port=str(icd.con.local.port),)
+				local_host=icd.con.local.host, local_port=str(icd.con.local.port),connection_transport=icd.con.transport,)
 		except Exception as e:
 			logger.warn('exception when publishing: {0}'.format(e))
 				
@@ -396,7 +406,7 @@ class hpfeedihandler(ihandler):
 		logger.debug('emu_services, publishing...')
 		try:
 			self.client.publish(EMU_SERVICESCHAN, emu_service_url="connectbackshell://"+str(icd.host)+":"+str(icd.port),remote_host=icd.con.remote.host, remote_port=str(icd.con.remote.port),
-				local_host=icd.con.local.host, local_port=str(icd.con.local.port),)
+				local_host=icd.con.local.host, local_port=str(icd.con.local.port),connection_transport=icd.con.transport,)
 		except Exception as e:
 			logger.warn('exception when publishing: {0}'.format(e))
 
@@ -405,7 +415,7 @@ class hpfeedihandler(ihandler):
 		logger.debug('p0f, publishing...')
 		try:
 			self.client.publish(P0FCHAN, p0f_genre=icd.genre, p0f_link=icd.link, p0f_detail=icd.detail, p0f_uptime=icd.uptime, p0f_tos=icd.tos, p0f_dist=icd.dist, p0f_nat=icd.nat, p0f_fw=icd.fw,remote_host=icd.con.remote.host, remote_port=str(icd.con.remote.port),
-				local_host=icd.con.local.host, local_port=str(icd.con.local.port),)
+				local_host=icd.con.local.host, local_port=str(icd.con.local.port),connection_transport=icd.con.transport,)
 		except Exception as e:
 			logger.warn('exception when publishing: {0}'.format(e))
 
@@ -414,7 +424,7 @@ class hpfeedihandler(ihandler):
 		logger.debug('dcerpc_bind, publishing dcerpcbind_transfersyntax {0}'.format(icd.transfersyntax))
 		try:
 			self.client.publish(DECRPCBINDCHAN, dcerpcbind_uuid=icd.uuid, dcerpcbind_transfersyntax=icd.transfersyntax,remote_host=icd.con.remote.host, remote_port=str(icd.con.remote.port),
-				local_host=icd.con.local.host, local_port=str(icd.con.local.port),)
+				local_host=icd.con.local.host, local_port=str(icd.con.local.port),connection_transport=icd.con.transport,)
 		except Exception as e:
 			logger.warn('exception when publishing: {0}'.format(e))
 
@@ -422,10 +432,7 @@ class hpfeedihandler(ihandler):
 		if not hasattr(icd, 'con') or not self.client.connected: return
 		logger.debug('mssql_login, publishing...')
 		try:
-			self.client.publish(LOGINSCHAN, login_username=icd.username, login_password=icd.password,remote_host=icd.con.remote.host, remote_port=str(icd.con.remote.port),
-				local_host=icd.con.local.host, local_port=str(icd.con.local.port),)
-			self.client.publish(MSSQL_FINGERPRINTSCHAN,mssql_fingerprint_hostname=icd.hostname, mssql_fingerprint_appname=icd.appname, mssql_fingerprint_cltintname=icd.cltintname,remote_host=icd.con.remote.host, remote_port=str(icd.con.remote.port),
-				local_host=icd.con.local.host, local_port=str(icd.con.local.port),)
+			self.client.publish(MSSQL_LOGINSCHAN, login_username=icd.username, login_password=icd.password,remote_host=icd.con.remote.host, remote_port=str(icd.con.remote.port),local_host=icd.con.local.host, local_port=str(icd.con.local.port),connection_transport=icd.con.transport,mssql_fingerprint_hostname=icd.hostname, mssql_fingerprint_appname=icd.appname, mssql_fingerprint_cltintname=icd.cltintname,)
 		except Exception as e:
 			logger.warn('exception when publishing: {0}'.format(e))
 
@@ -434,6 +441,6 @@ class hpfeedihandler(ihandler):
 		logger.debug('mssql_cmd, publishing...')
 		try:
 			self.client.publish(MSSQL_COMMANDSCHAN, mssql_command_statu=icd.status, mssql_command_cmd=icd.cmd,remote_host=icd.con.remote.host, remote_port=str(icd.con.remote.port),
-				local_host=icd.con.local.host, local_port=str(icd.con.local.port),)
+				local_host=icd.con.local.host, local_port=str(icd.con.local.port),connection_transport=icd.con.transport,)
 		except Exception as e:
 			logger.warn('exception when publishing: {0}'.format(e))	
