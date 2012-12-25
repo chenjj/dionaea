@@ -1,0 +1,6 @@
+#Notice:there is no space around  =
+HOST=1.1.1.1
+PORT=10000
+IDENT=IDENT
+SECRET=SECRET
+CHANNEL=dionaea.bistream
