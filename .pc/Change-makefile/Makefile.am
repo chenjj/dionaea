@@ -19,10 +19,6 @@ install-data-local:
 	if [ ! -e $(DESTDIR)$(sysconfdir)/dionaea/dionaea.conf ]; then \
 		$(INSTALL_DATA) $(srcdir)/conf/dionaea.conf.dist $(DESTDIR)$(sysconfdir)/dionaea/dionaea.conf; \
 	fi
-	$(INSTALL_DATA) $(srcdir)/conf/hpfeeds.cfg.dist $(DESTDIR)$(sysconfdir)/dionaea/hpfeeds.cfg.dist;
-	if [ ! -e $(DESTDIR)$(sysconfdir)/dionaea/hpfeeds.cfg ]; then \
-		$(INSTALL_DATA) $(srcdir)/conf/hpfeeds.cfg.dist $(DESTDIR)$(sysconfdir)/dionaea/hpfeeds.cfg; \
-	fi
 	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/log
-
+	
 

@@ -325,7 +325,7 @@ config.h: stamp-h1
 stamp-h1: $(srcdir)/config.h.in $(top_builddir)/config.status
 	@rm -f stamp-h1
 	cd $(top_builddir) && $(SHELL) ./config.status config.h
-$(srcdir)/config.h.in:  $(am__configure_deps) 
+$(srcdir)/config.h.in:  $(am__configure_deps)
 	($(am__cd) $(top_srcdir) && $(AUTOHEADER))
 	rm -f stamp-h1
 	touch $@
@@ -803,12 +803,11 @@ install-data-local:
 	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/dionaea/bistreams/
 	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/dionaea/wwwroot/
 	$(INSTALL_DATA) $(srcdir)/conf/dionaea.conf.dist $(DESTDIR)$(sysconfdir)/dionaea/dionaea.conf.dist;
+	$(INSTALL_DATA) $(srcdir)/conf/hpfeeds.cfg.dist $(DESTDIR)$(sysconfdir)/dionaea/hpfeeds.cfg.dist;
 	if [ ! -e $(DESTDIR)$(sysconfdir)/dionaea/dionaea.conf ]; then \
 		$(INSTALL_DATA) $(srcdir)/conf/dionaea.conf.dist $(DESTDIR)$(sysconfdir)/dionaea/dionaea.conf; \
-	fi
-	$(INSTALL_DATA) $(srcdir)/conf/hpfeeds.cfg.dist $(DESTDIR)$(sysconfdir)/dionaea/hpfeeds.cfg.dist;
-	if [ ! -e $(DESTDIR)$(sysconfdir)/dionaea/hpfeeds.cfg ]; then \
-		$(INSTALL_DATA) $(srcdir)/conf/hpfeeds.cfg.dist $(DESTDIR)$(sysconfdir)/dionaea/hpfeeds.cfg; \
+	if [ ! -e $(DESTDIR)$(sysconfdir)/conf/hpfeeds.cfg ]; then \
+		$(INSTALL_DATA) $(srcdir)/conf/hpfeeds.cfg.dist $(DESTDIR)$(srcdir)/dionaea/hpfeeds.cfg
 	fi
 	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/log
 
