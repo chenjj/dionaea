@@ -55,7 +55,9 @@ am_dionaea_OBJECTS = dionaea-dionaea.$(OBJEXT) dionaea-dns.$(OBJEXT) \
 	dionaea-modules.$(OBJEXT) dionaea-pchild.$(OBJEXT) \
 	dionaea-log.$(OBJEXT) dionaea-signals.$(OBJEXT) \
 	dionaea-incident.$(OBJEXT) dionaea-threads.$(OBJEXT) \
-	dionaea-bistream.$(OBJEXT) dionaea-processor.$(OBJEXT)
+	dionaea-bistream.$(OBJEXT) dionaea-processor.$(OBJEXT) \
+	dionaea-publish.$(OBJEXT) dionaea-hpfeeds.$(OBJEXT) \
+	dionaea-sha1.$(OBJEXT)
 dionaea_OBJECTS = $(am_dionaea_OBJECTS)
 dionaea_LDADD = $(LDADD)
 dionaea_LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
@@ -256,7 +258,7 @@ dionaea_LDFLAGS = ${LIB_EV_LIBS} ${LIB_GLIB_LIBS} ${LIB_LCFG_LIBS} \
 	${LIB_SSL_LIBS} ${LIB_UDNS_LIBS} ${LIB_GC_LIBS} ${AM_LDFLAGS}
 dionaea_SOURCES = dionaea.c dns.c refcount.c node_info.c util.c \
 	connection.c modules.c pchild.c log.c signals.c incident.c \
-	threads.c bistream.c processor.c
+	threads.c bistream.c processor.c publish.c hpfeeds.c sha1.c
 all: all-am
 
 .SUFFIXES:
@@ -348,13 +350,16 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dionaea-connection.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dionaea-dionaea.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dionaea-dns.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dionaea-hpfeeds.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dionaea-incident.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dionaea-log.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dionaea-modules.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dionaea-node_info.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dionaea-pchild.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dionaea-processor.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dionaea-publish.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dionaea-refcount.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dionaea-sha1.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dionaea-signals.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dionaea-threads.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dionaea-util.Po@am__quote@
@@ -575,6 +580,48 @@ dionaea-processor.obj: processor.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='processor.c' object='dionaea-processor.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dionaea_CFLAGS) $(CFLAGS) -c -o dionaea-processor.obj `if test -f 'processor.c'; then $(CYGPATH_W) 'processor.c'; else $(CYGPATH_W) '$(srcdir)/processor.c'; fi`
+
+dionaea-publish.o: publish.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dionaea_CFLAGS) $(CFLAGS) -MT dionaea-publish.o -MD -MP -MF $(DEPDIR)/dionaea-publish.Tpo -c -o dionaea-publish.o `test -f 'publish.c' || echo '$(srcdir)/'`publish.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/dionaea-publish.Tpo $(DEPDIR)/dionaea-publish.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='publish.c' object='dionaea-publish.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dionaea_CFLAGS) $(CFLAGS) -c -o dionaea-publish.o `test -f 'publish.c' || echo '$(srcdir)/'`publish.c
+
+dionaea-publish.obj: publish.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dionaea_CFLAGS) $(CFLAGS) -MT dionaea-publish.obj -MD -MP -MF $(DEPDIR)/dionaea-publish.Tpo -c -o dionaea-publish.obj `if test -f 'publish.c'; then $(CYGPATH_W) 'publish.c'; else $(CYGPATH_W) '$(srcdir)/publish.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/dionaea-publish.Tpo $(DEPDIR)/dionaea-publish.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='publish.c' object='dionaea-publish.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dionaea_CFLAGS) $(CFLAGS) -c -o dionaea-publish.obj `if test -f 'publish.c'; then $(CYGPATH_W) 'publish.c'; else $(CYGPATH_W) '$(srcdir)/publish.c'; fi`
+
+dionaea-hpfeeds.o: hpfeeds.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dionaea_CFLAGS) $(CFLAGS) -MT dionaea-hpfeeds.o -MD -MP -MF $(DEPDIR)/dionaea-hpfeeds.Tpo -c -o dionaea-hpfeeds.o `test -f 'hpfeeds.c' || echo '$(srcdir)/'`hpfeeds.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/dionaea-hpfeeds.Tpo $(DEPDIR)/dionaea-hpfeeds.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='hpfeeds.c' object='dionaea-hpfeeds.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dionaea_CFLAGS) $(CFLAGS) -c -o dionaea-hpfeeds.o `test -f 'hpfeeds.c' || echo '$(srcdir)/'`hpfeeds.c
+
+dionaea-hpfeeds.obj: hpfeeds.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dionaea_CFLAGS) $(CFLAGS) -MT dionaea-hpfeeds.obj -MD -MP -MF $(DEPDIR)/dionaea-hpfeeds.Tpo -c -o dionaea-hpfeeds.obj `if test -f 'hpfeeds.c'; then $(CYGPATH_W) 'hpfeeds.c'; else $(CYGPATH_W) '$(srcdir)/hpfeeds.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/dionaea-hpfeeds.Tpo $(DEPDIR)/dionaea-hpfeeds.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='hpfeeds.c' object='dionaea-hpfeeds.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dionaea_CFLAGS) $(CFLAGS) -c -o dionaea-hpfeeds.obj `if test -f 'hpfeeds.c'; then $(CYGPATH_W) 'hpfeeds.c'; else $(CYGPATH_W) '$(srcdir)/hpfeeds.c'; fi`
+
+dionaea-sha1.o: sha1.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dionaea_CFLAGS) $(CFLAGS) -MT dionaea-sha1.o -MD -MP -MF $(DEPDIR)/dionaea-sha1.Tpo -c -o dionaea-sha1.o `test -f 'sha1.c' || echo '$(srcdir)/'`sha1.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/dionaea-sha1.Tpo $(DEPDIR)/dionaea-sha1.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='sha1.c' object='dionaea-sha1.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dionaea_CFLAGS) $(CFLAGS) -c -o dionaea-sha1.o `test -f 'sha1.c' || echo '$(srcdir)/'`sha1.c
+
+dionaea-sha1.obj: sha1.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dionaea_CFLAGS) $(CFLAGS) -MT dionaea-sha1.obj -MD -MP -MF $(DEPDIR)/dionaea-sha1.Tpo -c -o dionaea-sha1.obj `if test -f 'sha1.c'; then $(CYGPATH_W) 'sha1.c'; else $(CYGPATH_W) '$(srcdir)/sha1.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/dionaea-sha1.Tpo $(DEPDIR)/dionaea-sha1.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='sha1.c' object='dionaea-sha1.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dionaea_CFLAGS) $(CFLAGS) -c -o dionaea-sha1.obj `if test -f 'sha1.c'; then $(CYGPATH_W) 'sha1.c'; else $(CYGPATH_W) '$(srcdir)/sha1.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo

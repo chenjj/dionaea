@@ -1,4 +1,4 @@
-#!/opt/dionaea/bin/python3
+#!/usr/bin/python3
 
 # sudo su postgres
 # createdb --owner=xmpp logsql

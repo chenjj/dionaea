@@ -3,7 +3,7 @@
 AUTOMAKE_OPTIONS = foreign
 
 AM_CFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/src -pipe -D _GNU_SOURCE -fno-strict-aliasing
-AM_CFLAGS += -Wall -Werror
+AM_CFLAGS += -Wall 
 
 AM_CFLAGS += ${LIB_LCFG_CFLAGS} ${LIB_GLIB_CFLAGS} 
 AM_LDFLAGS = ${LIB_LCFG_LIBS}   ${LIB_GLIB_LIBS} 

@@ -270,8 +270,8 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = foreign
 AM_CFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/src -pipe -D \
-	_GNU_SOURCE -fno-strict-aliasing -Wall -Werror \
-	${LIB_LCFG_CFLAGS} ${LIB_GLIB_CFLAGS}
+	_GNU_SOURCE -fno-strict-aliasing -Wall ${LIB_LCFG_CFLAGS} \
+	${LIB_GLIB_CFLAGS}
 AM_LDFLAGS = ${LIB_LCFG_LIBS}   ${LIB_GLIB_LIBS} 
 pkglib_LTLIBRARIES = nfq.la
 nfq_la_SOURCES = nfq.c nfq.h

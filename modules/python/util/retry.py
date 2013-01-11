@@ -1,4 +1,4 @@
-#!/opt/dionaea/bin/python3.1
+#!/usr/bin/python3.1
 
 from optparse import OptionParser
 import socket

@@ -1,4 +1,4 @@
-#!/opt/dionaea/bin/python3.1
+#!/usr/bin/python3.1
 
 from optparse import OptionParser
 import sqlite3
@@ -372,7 +372,7 @@ def recursive_print(cursor, connection, indent):
 		recursive_print(cursor, c['connection'], indent+2)
 
 def print_db(opts, args):
-	dbpath = '/opt/dionaea/var/dionaea/logsql.sqlite'
+	dbpath = '/var/dionaea/logsql.sqlite'
 	if len(args) >= 1:
 		dbpath = args[0]
 	print("using database located at {0}".format(dbpath))

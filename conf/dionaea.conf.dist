@@ -224,10 +224,10 @@ modules = {
 	python = {
 		hpfeeds = {
 			hp1 = {
-				server = "hpfeeds.weilin.me"
+				server = "1.1.1.1"
 				port = "10000"
-				ident = "a8g1e@hp1"
-				secret = "5c44vxrydyxladza"
+				ident = "ident"
+				secret = "secret"
 				// dynip_resolve: enable to lookup the sensor ip through a webservice
 				dynip_resolve = "http://hpfeeds.honeycloud.net/ip"
 			}

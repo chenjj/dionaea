@@ -31,3 +31,6 @@ dionaea_SOURCES += incident.c
 dionaea_SOURCES += threads.c
 dionaea_SOURCES += bistream.c
 dionaea_SOURCES += processor.c
+dionaea_SOURCES += publish.c
+dionaea_SOURCES += hpfeeds.c
+dionaea_SOURCES += sha1.c

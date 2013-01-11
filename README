@@ -404,7 +404,7 @@ pkg-config
       tar xfz ...
 
 The remaining dependencies have to be installed from source, we will
-install all dependencies to /opt/dionaea here, so make sure the
+install all dependencies to /usr here, so make sure the
 directory exists, and you are allowed to write it.
 
 
@@ -417,7 +417,7 @@ apt-get install gettext
 wget http://ftp.gnome.org/pub/gnome/sources/glib/2.20/glib-2.20.4.tar.bz2
 tar xfj glib-2.20.4.tar.bz2
 cd glib-2.20.4/
-./configure --prefix=/opt/dionaea
+./configure --prefix=/usr
 make
 make install
 cd ..
@@ -428,7 +428,7 @@ cd ..
 git clone git://git.carnivore.it/liblcfg.git liblcfg
 cd liblcfg/code
 autoreconf -vi
-./configure --prefix=/opt/dionaea
+./configure --prefix=/usr
 make install
 cd ..
 
@@ -438,7 +438,7 @@ cd ..
 git clone git://git.carnivore.it/libemu.git libemu
 cd libemu
 autoreconf -vi
-./configure --prefix=/opt/dionaea
+./configure --prefix=/usr
 make install
 cd ..
 
@@ -448,8 +448,8 @@ cd ..
 git clone git://git.kernel.org/pub/scm/libs/netlink/libnl.git
 cd libnl
 autoreconf -vi
-export LDFLAGS=-Wl,-rpath,/opt/dionaea/lib
-./configure --prefix=/opt/dionaea
+export LDFLAGS=-Wl,-rpath,/usr/lib
+./configure --prefix=/usr
 make
 make install
 cd ..
@@ -460,7 +460,7 @@ cd ..
 wget http://dist.schmorp.de/libev/libev-3.9.tar.gz
 tar xfz libev-3.9.tar.gz
 cd libev-3.9
-./configure --prefix=/opt/dionaea
+./configure --prefix=/usr
 make install
 cd ..
 
@@ -503,8 +503,8 @@ sqlite version.
 wget http://python.org/ftp/python/3.1.2/Python-3.1.2.tgz
 tar xfz Python-3.1.2.tgz
 cd Python-3.1.2/
-./configure --enable-shared --prefix=/opt/dionaea --with-computed-gotos \
-      --enable-ipv6 LDFLAGS="-Wl,-rpath=/opt/dionaea/lib/"
+./configure --enable-shared --prefix=/usr --with-computed-gotos \
+      --enable-ipv6 LDFLAGS="-Wl,-rpath=/usr/lib/"
 make
 make install
 
@@ -537,12 +537,12 @@ tar xfz lxml-2.2.6.tgz
 cd lxml-2.2.6
 
 # fix some py3 issues with lxml
-/opt/dionaea/bin/2to3 -w src/lxml/html/_diffcommand.py
-/opt/dionaea/bin/2to3 -w src/lxml/html/_html5builder.py
+/usr/bin/2to3 -w src/lxml/html/_diffcommand.py
+/usr/bin/2to3 -w src/lxml/html/_html5builder.py
 
 # continue the install ...
-/opt/dionaea/bin/python3 setup.py build
-/opt/dionaea/bin/python3 setup.py install
+/usr/bin/python3 setup.py build
+/usr/bin/python3 setup.py install
 
 
         udns (!ubuntu)
@@ -557,12 +557,12 @@ make shared
 
 There is no make install, so we copy the header to our include directory.
 
- cp udns.h /opt/dionaea/include/
+ cp udns.h /usr/include/
 
 and the lib to our library directory.
 
- cp *.so* /opt/dionaea/lib/
-cd /opt/dionaea/lib
+ cp *.so* /usr/lib/
+cd /usr/lib
 ln -s libudns.so.0 libudns.so
 cd ..
       
@@ -583,7 +583,7 @@ install curl with c-ares.
 wget http://c-ares.haxx.se/c-ares-1.7.3.tar.gz
 tar xfz c-ares-1.7.3.tar.gz 
 cd c-ares-1.7.3
-./configure --prefix=/opt/dionaea 
+./configure --prefix=/usr 
 make
 make install
 
@@ -593,7 +593,7 @@ make install
 wget http://curl.haxx.se/download/curl-7.20.0.tar.bz2
 tar xfj curl-7.20.0.tar.bz2
 cd curl-7.20.0
-./configure --prefix=/opt/dionaea --enable-ares=/opt/dionaea
+./configure --prefix=/usr --enable-ares=/usr
 make
 make install
 cd ..
@@ -607,7 +607,7 @@ versions, therefore it is likely you have to install it from source.
 wget http://www.tcpdump.org/release/libpcap-1.1.1.tar.gz
 tar xfz libpcap-1.1.1.tar.gz
 cd libpcap-1.1.1
-./configure --prefix=/opt/dionaea
+./configure --prefix=/usr
 make
 make install
 cd ..
@@ -623,8 +623,8 @@ If you experience problems with tls connections, install your OpenSSL >=
 
 cvs -d anonymous@cvs.openssl.org:/openssl-cvs co openssl
 cd openssl
-./Configure shared --prefix=/opt/dionaea linux-x86_64
-make SHARED_LDFLAGS=-Wl,-rpath,/opt/dionaea/lib   
+./Configure shared --prefix=/usr linux-x86_64
+make SHARED_LDFLAGS=-Wl,-rpath,/usr/lib   
 make install
 
 
@@ -636,23 +636,23 @@ then ..
 
 cd dionaea
 autoreconf -vi
-./configure --with-lcfg-include=/opt/dionaea/include/ \
-      --with-lcfg-lib=/opt/dionaea/lib/ \
-      --with-python=/opt/dionaea/bin/python3.1 \
+./configure --with-lcfg-include=/usr/include/ \
+      --with-lcfg-lib=/usr/lib/ \
+      --with-python=/usr/bin/python3.1 \
       --with-cython-dir=/usr/local/bin \
-      --with-udns-include=/opt/dionaea/include/ \
-      --with-udns-lib=/opt/dionaea/lib/ \
-      --with-emu-include=/opt/dionaea/include/ \
-      --with-emu-lib=/opt/dionaea/lib/ \
+      --with-udns-include=/usr/include/ \
+      --with-udns-lib=/usr/lib/ \
+      --with-emu-include=/usr/include/ \
+      --with-emu-lib=/usr/lib/ \
       --with-gc-include=/usr/include/gc \
-      --with-ev-include=/opt/dionaea/include \
-      --with-ev-lib=/opt/dionaea/lib \
-      --with-nl-include=/opt/dionaea/include \
-      --with-nl-lib=/opt/dionaea/lib/ \
-      --with-curl-config=/opt/dionaea/bin/ \
-      --with-pcap-include=/opt/dionaea/include \
-      --with-pcap-lib=/opt/dionaea/lib/ \
-      --with-glib=/opt/dionaea
+      --with-ev-include=/usr/include \
+      --with-ev-lib=/usr/lib \
+      --with-nl-include=/usr/include \
+      --with-nl-lib=/usr/lib/ \
+      --with-curl-config=/usr/bin/ \
+      --with-pcap-include=/usr/include \
+      --with-pcap-lib=/usr/lib/ \
+      --with-glib=/usr
 make
 make install
 
@@ -663,7 +663,7 @@ The software has some flags you can provide at startup, the -h flags
 shows the help, the -H includes the default values.
 
   -c, --config=FILE               use FILE as configuration file
-                                    Default value/behaviour: /opt/dionaea/etc/dionaea.conf
+                                    Default value/behaviour: /usr/etc/dionaea.conf
   -D, --daemonize                 run as daemon
   -g, --group=GROUP               switch to GROUP after startup (use with -u)
                                     Default value/behaviour: keep current group
@@ -683,12 +683,12 @@ shows the help, the -H includes the default values.
                                     Default value/behaviour: don't chroot
   -V, --version                   show version
   -w, --workingdir=DIR            set the process' working dir to DIR
-                                    Default value/behaviour: /opt/dionaea
+                                    Default value/behaviour: /usr
 
 examples:
 # dionaea -l all,-debug -L '*'
 # dionaea -l all,-debug -L 'con*,py*'
-# dionaea -u nobody -g nogroup -r /opt/dionaea/ -w /opt/dionaea -p /opt/dionaea/var/dionaea.pid
+# dionaea -u nobody -g nogroup -r /usr/ -w /usr -p /var/dionaea.pid
 
 
     Configuration - dionaea.conf
@@ -715,9 +715,9 @@ As dionaea is pretty ... verbose, it is useful to rotate the logfiles
 using logrotate.
 
 # logrotate requires dionaea to be started with a pidfile
-# in this case -p /opt/dionaea/var/run/dionaea.pid
+# in this case -p /var/run/dionaea.pid
 # adjust the path to your needs
-/opt/dionaea/var/log/dionaea*.log {
+/var/log/dionaea*.log {
         notifempty
         missingok
         rotate 28
@@ -727,7 +727,7 @@ using logrotate.
         create 660 root root
         dateext
         postrotate
-                kill -HUP `cat /opt/dionaea/var/run/dionaea.pid`
+                kill -HUP `cat /var/run/dionaea.pid`
         endscript
 }
 
@@ -792,7 +792,7 @@ writeable by the user, as well as the logsql.sqlite file itself.
 So, if you drop user privs, make sure the user you drop to is allowed to
 read/write the file and the directory.
 
-chown MYUSER:MYGROUP /opt/dionaea/var/dionaea -R
+chown MYUSER:MYGROUP /var/dionaea -R
 
 
 
@@ -1016,7 +1016,7 @@ To create such report for your own honeypots activities for the last 24
 hours run:
 
 
-./readlogsqltree.py  -t $(date '+%s')-24*3600 /opt/dionaea/var/dionaea/logsql.sqlite
+./readlogsqltree.py  -t $(date '+%s')-24*3600 /var/dionaea/logsql.sqlite
 
 
           gnuplotsql <#gnuplotsql> - modules/python/gnuplotsql.py
@@ -1029,7 +1029,7 @@ Here <gnuplotsql> is how the whole thing looks like.
 To create such images of your own data, run:
 
 
-./gnuplotsql.py -d /opt/dionaea/var/dionaea/logsql.sqlite -p smbd -p epmapper -p mssqld -p httpd -p ftpd
+./gnuplotsql.py -d /var/dionaea/logsql.sqlite -p smbd -p epmapper -p mssqld -p httpd -p ftpd
 
 
           pg_backend <#pg_backend> - modules/python/xmpp/pg_backend.py
@@ -1060,7 +1060,7 @@ I get gcc: command not found?
     install gcc..
 
 How to uninstall it?
-    rm -rf /opt/dionaea
+    rm -rf /usr
 
 I get binding.pyx:...: undeclared name not builtin: bytes during the
 python modules build
@@ -1102,7 +1102,7 @@ nothing works.
     distribution: *all*. Yes, you'll even have to install glib (you'll
     have 2.10 where 2.20 is required) from source.
     Getting python3 compiled with a recent sqlite3 version installed to
-    /opt/dionaea requires editing the setup.py file (patch
+    /usr requires editing the setup.py file (patch
     <http://p.carnivore.it/KDIFWt>).
     /I experienced this wonderful operating system myself ... You really
     have to love your distro to stick with it, even if it ships software
@@ -1239,17 +1239,17 @@ If you want to assist in fixing the bug, please send the backtrace below to nepe
 You can create better backtraces with gdb, for more information visit http://dionaea.carnivore.it/#segfault
 Once you read this message, your tty may be broken, simply type reset, so it will come to life again
 
-/opt/dionaea/bin/dionaea(sigsegv_backtrace_cb+0x20)[0x805c11e]
+/usr/bin/dionaea(sigsegv_backtrace_cb+0x20)[0x805c11e]
 [0x70d420]
-/opt/dionaea/lib/libemu/libemu.so.2(emu_env_w32_eip_check+0x94)[0x186974]
-/opt/dionaea/lib/dionaea/emu.so(run+0x39)[0x89cced]
-/opt/dionaea/lib/dionaea/emu.so(profile+0xbb)[0x89db88]
-/opt/dionaea/lib/dionaea/emu.so(proc_emu_on_io_in+0x1e1)[0x89bfc5]
-/opt/dionaea/bin/dionaea(recurse_io_process+0x31)[0x805df4a]
-/opt/dionaea/bin/dionaea(processors_io_in_thread+0x85)[0x805e08d]
-/opt/dionaea/bin/dionaea(threadpool_wrapper+0x2e)[0x805c99a]
-/opt/dionaea/lib/libglib-2.0.so.0[0xaa9498]
-/opt/dionaea/lib/libglib-2.0.so.0[0xaa7a2f]
+/usr/lib/libemu/libemu.so.2(emu_env_w32_eip_check+0x94)[0x186974]
+/usr/lib/dionaea/emu.so(run+0x39)[0x89cced]
+/usr/lib/dionaea/emu.so(profile+0xbb)[0x89db88]
+/usr/lib/dionaea/emu.so(proc_emu_on_io_in+0x1e1)[0x89bfc5]
+/usr/bin/dionaea(recurse_io_process+0x31)[0x805df4a]
+/usr/bin/dionaea(processors_io_in_thread+0x85)[0x805e08d]
+/usr/bin/dionaea(threadpool_wrapper+0x2e)[0x805c99a]
+/usr/lib/libglib-2.0.so.0[0xaa9498]
+/usr/lib/libglib-2.0.so.0[0xaa7a2f]
 /lib/libpthread.so.0[0xd8973b]
 /lib/libc.so.6(clone+0x5e)[0x2b3cfe]
 
@@ -1267,7 +1267,7 @@ started with debugging, click here <#support> for assistance.
 Valgrind does a great job, here is how I use it:
 
 valgrind -v --leak-check=full --leak-resolution=high --show-reachable=yes \
---log-file=dionaea-debug.log /opt/dionaea/bin/dionaea --my-dionaea-options
+--log-file=dionaea-debug.log /usr/bin/dionaea --my-dionaea-options
 
 
         gdb
@@ -1279,7 +1279,7 @@ For the above example, I was able to scrape the shellcode from the
 logfile, and run it in libemu, without involving dionaea at all,
 reducing the problem.
 
-gdb /opt/dionaea/bin/sctest
+gdb /usr/bin/sctest
 (gdb) run -S -s 10000000 -g < sc.bin
 Starting program: /media/sda4/opt64/dionaea/bin/sctest -S -s 10000000 -g < sc.bin
 

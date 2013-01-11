@@ -278,7 +278,7 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = foreign
 SUBDIRS = src include modules
-EXTRA_DIST = configure.ac conf/dionaea.conf.dist
+EXTRA_DIST = configure.ac conf/dionaea.conf.dist conf/hpfeeds.cfg.dist
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 
@@ -805,6 +805,10 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/conf/dionaea.conf.dist $(DESTDIR)$(sysconfdir)/dionaea/dionaea.conf.dist;
 	if [ ! -e $(DESTDIR)$(sysconfdir)/dionaea/dionaea.conf ]; then \
 		$(INSTALL_DATA) $(srcdir)/conf/dionaea.conf.dist $(DESTDIR)$(sysconfdir)/dionaea/dionaea.conf; \
+	fi
+	$(INSTALL_DATA) $(srcdir)/conf/hpfeeds.cfg.dist $(DESTDIR)$(sysconfdir)/dionaea/hpfeeds.cfg.dist;
+	if [ ! -e $(DESTDIR)$(sysconfdir)/dionaea/hpfeeds.cfg ]; then \
+		$(INSTALL_DATA) $(srcdir)/conf/hpfeeds.cfg.dist $(DESTDIR)$(sysconfdir)/dionaea/hpfeeds.cfg; \
 	fi
 	$(mkinstalldirs) $(DESTDIR)$(localstatedir)/log
 

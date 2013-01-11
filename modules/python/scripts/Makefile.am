@@ -38,6 +38,7 @@ PYSCRIPTS += p0f.py
 PYSCRIPTS += cmd.py
 PYSCRIPTS += emu.py
 PYSCRIPTS += ihandlers.py
+PYSCRIPTS += hpfeeds.py
 PYSCRIPTS += util.py
 PYSCRIPTS += store.py
 PYSCRIPTS += surfids.py
@@ -60,7 +61,7 @@ PYSCRIPTS += mysql/include/__init__.py
 
 
 all: $(PYSCRIPTS)
-	
+
 
 install-data-am: all
 	for i in $(PYSCRIPTS); do \
