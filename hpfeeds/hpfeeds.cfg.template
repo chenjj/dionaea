@@ -1,6 +1,0 @@
-#Notice:there is no space around  = 
-HOST=1.1.1.1
-PORT=10000
-IDENT=ident
-SECRET=secret
-CHANNEL=channel
